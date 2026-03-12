@@ -25,17 +25,8 @@ export default function CategoryList({ type }: Props) {
       .catch(() => {});
   }, [type]);
 
-  const isPremium = type === 'premium';
-
   return (
-    <div
-      className="min-h-screen px-3 py-3 space-y-2"
-      style={{
-        background: isPremium
-          ? 'linear-gradient(180deg, #ffdddd 0%, #ffe8e8 30%, #fff0f0 60%, #ffffff 100%)'
-          : 'linear-gradient(180deg, #c8e4fd 0%, #dceefb 30%, #eef6ff 60%, #ffffff 100%)',
-      }}
-    >
+    <div className="min-h-screen px-3 py-3 space-y-2 bg-gray-50">
       {ALL_CATEGORIES.map(category => {
         const count = countMap[category];
         return (

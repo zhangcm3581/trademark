@@ -85,10 +85,7 @@ export default function FavoritesPage() {
           暂无收藏
         </div>
       ) : (
-        <div
-          className="p-3 min-h-screen"
-          style={{ background: 'linear-gradient(180deg, #fffef8 0%, #fffefa 30%, #fffefc 60%, #ffffff 100%)' }}
-        >
+        <div className="p-3 min-h-screen bg-gray-50">
           {allItems.map(item => (
             <div key={item.id} className="flex items-start gap-2">
               <button

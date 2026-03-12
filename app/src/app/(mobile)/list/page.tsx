@@ -72,14 +72,8 @@ function ListContent() {
     headerIcon = getCategoryIcon(parseInt(category));
   }
 
-  const bgGradient = isIntl
-    ? 'linear-gradient(180deg, #fce4e4 0%, #fdeaea 30%, #fff0f0 60%, #ffffff 100%)'
-    : type === 'premium'
-      ? 'linear-gradient(180deg, #ffdddd 0%, #ffe8e8 30%, #fff0f0 60%, #ffffff 100%)'
-      : 'linear-gradient(180deg, #c8e4fd 0%, #dceefb 30%, #eef6ff 60%, #ffffff 100%)';
-
   return (
-    <div className="min-h-screen" style={{ background: bgGradient }}>
+    <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-gray-100 z-10">
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => history.back()} className="text-gray-500">
