@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import BottomNav from '@/components/BottomNav';
 
 export default function MobileLayout({
@@ -8,7 +9,9 @@ export default function MobileLayout({
   return (
     <div className="max-w-lg mx-auto min-h-screen pb-16">
       {children}
-      <BottomNav />
+      <Suspense>
+        <BottomNav />
+      </Suspense>
     </div>
   );
 }
