@@ -37,7 +37,8 @@ export default function CountryList() {
 
   return (
     <div
-      className="min-h-screen px-3 py-3 space-y-2 bg-gray-50"
+      className="min-h-screen px-3 py-3 space-y-2"
+      style={{ backgroundColor: '#fdeaea' }}
     >
       {countries.map(({ country, count }) => (
         <Link

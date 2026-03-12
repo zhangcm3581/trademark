@@ -85,7 +85,7 @@ export default function FavoritesPage() {
           暂无收藏
         </div>
       ) : (
-        <div className="p-3 min-h-screen bg-gray-50">
+        <div className="p-3 min-h-screen" style={{ backgroundColor: '#fffef8' }}>
           {allItems.map(item => (
             <div key={item.id} className="flex items-start gap-2">
               <button

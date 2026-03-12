@@ -26,7 +26,10 @@ export default function CategoryList({ type }: Props) {
   }, [type]);
 
   return (
-    <div className="min-h-screen px-3 py-3 space-y-2 bg-gray-50">
+    <div
+      className="min-h-screen px-3 py-3 space-y-2"
+      style={{ backgroundColor: type === 'premium' ? '#ffe8e8' : '#dceefb' }}
+    >
       {ALL_CATEGORIES.map(category => {
         const count = countMap[category];
         return (
