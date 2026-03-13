@@ -2,18 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-const tabs = [
-  { href: '/premium', label: '精品商标', icon: PremiumIcon },
-  { href: '/discount', label: '特惠商标', icon: DiscountIcon },
-  { href: '/international', label: '国际商标', icon: InternationalIcon },
-  { href: '/search', label: '商标搜索', icon: SearchIcon },
-  { href: '/favorites', label: '我的收藏', icon: FavoriteIcon },
+const allTabs = [
+  { href: '/premium', label: '精品商标', icon: PremiumIcon, key: 'premium' },
+  { href: '/discount', label: '特惠商标', icon: DiscountIcon, key: 'discount' },
+  { href: '/international', label: '国际商标', icon: InternationalIcon, key: 'international' },
+  { href: '/search', label: '商标搜索', icon: SearchIcon, key: 'search' },
+  { href: '/favorites', label: '我的收藏', icon: FavoriteIcon, key: 'favorites' },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [showDiscount, setShowDiscount] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.show_discount_tab !== undefined) {
+          setShowDiscount(data.show_discount_tab === 'true');
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const tabs = showDiscount ? allTabs : allTabs.filter(t => t.key !== 'discount');
 
   const getIsActive = (href: string) => {
     if (pathname.startsWith(href)) return true;

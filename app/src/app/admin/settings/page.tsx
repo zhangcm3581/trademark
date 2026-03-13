@@ -5,8 +5,10 @@ import { CATEGORY_NAMES, getCategoryIcon } from '@/lib/constants';
 
 export default function SettingsPage() {
   const [threshold, setThreshold] = useState('5000');
+  const [showDiscountTab, setShowDiscountTab] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingTab, setSavingTab] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -15,6 +17,9 @@ export default function SettingsPage() {
       .then(data => {
         if (data.discount_price_threshold) {
           setThreshold(data.discount_price_threshold);
+        }
+        if (data.show_discount_tab !== undefined) {
+          setShowDiscountTab(data.show_discount_tab === 'true');
         }
         setLoading(false);
       })
@@ -50,8 +55,50 @@ export default function SettingsPage() {
     );
   }
 
+  const handleToggleDiscountTab = async () => {
+    setSavingTab(true);
+    const newValue = !showDiscountTab;
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ show_discount_tab: String(newValue) }),
+      });
+      if (res.ok) {
+        setShowDiscountTab(newValue);
+      }
+    } catch {
+      // ignore
+    }
+    setSavingTab(false);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Discount tab toggle */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-base font-bold mb-4">菜单显示设置</h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">显示「特惠商标」菜单</p>
+            <p className="text-xs text-gray-400 mt-1">关闭后，底部导航栏将隐藏「特惠商标」入口</p>
+          </div>
+          <button
+            onClick={handleToggleDiscountTab}
+            disabled={savingTab}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              showDiscountTab ? 'bg-blue-500' : 'bg-gray-300'
+            } ${savingTab ? 'opacity-50' : ''}`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                showDiscountTab ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       {/* Price threshold */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-base font-bold mb-4">价格分类设置</h3>

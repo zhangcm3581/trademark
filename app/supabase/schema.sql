@@ -60,14 +60,6 @@ CREATE POLICY "Auth insert international_trademarks" ON international_trademarks
 CREATE POLICY "Auth update international_trademarks" ON international_trademarks FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Auth delete international_trademarks" ON international_trademarks FOR DELETE TO authenticated USING (true);
 
--- Storage bucket for trademark images
-INSERT INTO storage.buckets (id, name, public) VALUES ('trademark-images', 'trademark-images', true)
-ON CONFLICT (id) DO NOTHING;
-
-CREATE POLICY "Public read trademark images" ON storage.objects FOR SELECT USING (bucket_id = 'trademark-images');
-CREATE POLICY "Auth upload trademark images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'trademark-images');
-CREATE POLICY "Auth delete trademark images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'trademark-images');
-
 -- 系统设置表
 CREATE TABLE IF NOT EXISTS settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,4 +75,7 @@ CREATE POLICY "Auth update settings" ON settings FOR UPDATE TO authenticated USI
 
 -- 默认设置
 INSERT INTO settings (key, value) VALUES ('discount_price_threshold', '5000')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value) VALUES ('show_discount_tab', 'true')
 ON CONFLICT (key) DO NOTHING;
