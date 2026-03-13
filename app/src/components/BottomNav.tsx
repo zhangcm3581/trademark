@@ -4,13 +4,15 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-const allTabs = [
+// 固定显示的 4 个 tab（不依赖接口）
+const fixedTabs = [
   { href: '/premium', label: '精品商标', icon: PremiumIcon, key: 'premium' },
-  { href: '/discount', label: '特惠商标', icon: DiscountIcon, key: 'discount' },
   { href: '/international', label: '国际商标', icon: InternationalIcon, key: 'international' },
   { href: '/search', label: '商标搜索', icon: SearchIcon, key: 'search' },
   { href: '/favorites', label: '我的收藏', icon: FavoriteIcon, key: 'favorites' },
 ];
+
+const discountTab = { href: '/discount', label: '特惠商标', icon: DiscountIcon, key: 'discount' };
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -26,9 +28,10 @@ export default function BottomNav() {
       .catch(() => setShowDiscount(true));
   }, []);
 
-  const tabs = showDiscount === false
-    ? allTabs.filter(t => t.key !== 'discount')
-    : allTabs;
+  // 固定 tab 立即渲染，特惠商标等 API 返回 true 后插入到第二位
+  const tabs = showDiscount
+    ? [fixedTabs[0], discountTab, ...fixedTabs.slice(1)]
+    : fixedTabs;
 
   const getIsActive = (href: string) => {
     if (pathname.startsWith(href)) return true;
@@ -42,7 +45,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 transition-opacity duration-150 ${showDiscount === null ? 'opacity-0' : 'opacity-100'}`}>
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
       <div className="max-w-lg mx-auto flex">
         {tabs.map((tab) => {
           const isActive = getIsActive(tab.href);
