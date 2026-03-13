@@ -16,7 +16,7 @@ export default function ImportPage() {
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState('');
-  const [result, setResult] = useState<{ success?: boolean; inserted?: number; error?: string } | null>(null);
+  const [result, setResult] = useState<{ success?: boolean; inserted?: number; skipped?: number; error?: string } | null>(null);
   const [previewPage, setPreviewPage] = useState(1);
   const [dragging, setDragging] = useState(false);
   const previewPageSize = 20;
@@ -232,7 +232,7 @@ export default function ImportPage() {
                 )}
                 <span className="font-medium">
                   {result.success
-                    ? `导入成功！共导入 ${result.inserted} 条记录`
+                    ? `导入成功！共导入 ${result.inserted} 条记录${result.skipped ? `，跳过 ${result.skipped} 条重复记录` : ''}`
                     : `导入失败：${result.error}`}
                 </span>
               </div>

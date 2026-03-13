@@ -37,11 +37,21 @@ export async function POST(request: NextRequest) {
       image_url: images?.[idx] || null,
     }));
 
+    // Filter out duplicates by name
+    const names = rows.map((r: { name: string }) => r.name).filter(Boolean);
+    const { data: existing } = await supabase
+      .from('trademarks')
+      .select('name')
+      .in('name', names);
+    const existingNames = new Set((existing || []).map((e: { name: string }) => e.name));
+    const uniqueRows = rows.filter((r: { name: string }) => r.name && !existingNames.has(r.name));
+    const skipped = rows.length - uniqueRows.length;
+
     // Batch insert in chunks of 100
     const chunkSize = 100;
     let inserted = 0;
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
+    for (let i = 0; i < uniqueRows.length; i += chunkSize) {
+      const chunk = uniqueRows.slice(i, i + chunkSize);
       const { error } = await supabase.from('trademarks').insert(chunk);
       if (error) {
         return NextResponse.json(
@@ -52,7 +62,7 @@ export async function POST(request: NextRequest) {
       inserted += chunk.length;
     }
 
-    return NextResponse.json({ success: true, inserted });
+    return NextResponse.json({ success: true, inserted, skipped });
   }
 
   if (type === 'international') {
@@ -72,10 +82,20 @@ export async function POST(request: NextRequest) {
       image_url: images?.[idx] || null,
     }));
 
+    // Filter out duplicates by name
+    const intlNames = rows.map((r: { name: string }) => r.name).filter(Boolean);
+    const { data: existingIntl } = await supabase
+      .from('international_trademarks')
+      .select('name')
+      .in('name', intlNames);
+    const existingIntlNames = new Set((existingIntl || []).map((e: { name: string }) => e.name));
+    const uniqueIntlRows = rows.filter((r: { name: string }) => r.name && !existingIntlNames.has(r.name));
+    const intlSkipped = rows.length - uniqueIntlRows.length;
+
     const chunkSize = 100;
     let inserted = 0;
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
+    for (let i = 0; i < uniqueIntlRows.length; i += chunkSize) {
+      const chunk = uniqueIntlRows.slice(i, i + chunkSize);
       const { error } = await supabase.from('international_trademarks').insert(chunk);
       if (error) {
         return NextResponse.json(
@@ -86,7 +106,7 @@ export async function POST(request: NextRequest) {
       inserted += chunk.length;
     }
 
-    return NextResponse.json({ success: true, inserted });
+    return NextResponse.json({ success: true, inserted, skipped: intlSkipped });
   }
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
