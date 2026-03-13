@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import FavoriteButton from '@/components/FavoriteButton';
-import { PREMIUM_PRICE_THRESHOLD, CATEGORY_NAMES } from '@/lib/constants';
+import { CATEGORY_NAMES } from '@/lib/constants';
 import type { Trademark, InternationalTrademark } from '@/types';
 
 function DetailContent() {
@@ -44,7 +44,6 @@ function DetailContent() {
     );
   }
 
-  const isPremium = item.price >= PREMIUM_PRICE_THRESHOLD;
   const products = isIntl
     ? (item as InternationalTrademark).cn_items
     : (item as Trademark).products_services;
@@ -94,11 +93,6 @@ function DetailContent() {
             国家/地区：{(item as InternationalTrademark).country}
           </p>
         )}
-        <div className="flex justify-end px-4">
-          <span className={`text-xs px-2 py-0.5 rounded ${isPremium ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-            {isPremium ? '精品' : '特惠'}
-          </span>
-        </div>
       </div>
 
       {productList.length > 0 && (
