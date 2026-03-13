@@ -2,36 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
-// 固定显示的 4 个 tab（不依赖接口）
-const fixedTabs = [
+const allTabs = [
   { href: '/premium', label: '精品商标', icon: PremiumIcon, key: 'premium' },
+  { href: '/discount', label: '特惠商标', icon: DiscountIcon, key: 'discount' },
   { href: '/international', label: '国际商标', icon: InternationalIcon, key: 'international' },
   { href: '/search', label: '商标搜索', icon: SearchIcon, key: 'search' },
   { href: '/favorites', label: '我的收藏', icon: FavoriteIcon, key: 'favorites' },
 ];
 
-const discountTab = { href: '/discount', label: '特惠商标', icon: DiscountIcon, key: 'discount' };
-
-export default function BottomNav() {
+export default function BottomNav({ showDiscount }: { showDiscount: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [showDiscount, setShowDiscount] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    fetch('/api/settings')
-      .then(res => res.json())
-      .then(data => {
-        setShowDiscount(data.show_discount_tab !== 'false');
-      })
-      .catch(() => setShowDiscount(true));
-  }, []);
-
-  // 固定 tab 立即渲染，特惠商标等 API 返回 true 后插入到第二位
-  const tabs = showDiscount
-    ? [fixedTabs[0], discountTab, ...fixedTabs.slice(1)]
-    : fixedTabs;
+  const tabs = showDiscount ? allTabs : allTabs.filter(t => t.key !== 'discount');
 
   const getIsActive = (href: string) => {
     if (pathname.startsWith(href)) return true;
