@@ -11,6 +11,18 @@
 
 所有服务部署在同一台服务器上，数据库通过 Docker 运行在本机。
 
+### 版本要求
+
+| 组件 | 要求版本 | 说明 |
+|------|---------|------|
+| Node.js | >= 18.18.0（推荐 20.x） | Next.js 16 要求最低 18.18 |
+| npm | >= 9 | 随 Node.js 附带 |
+| Docker | >= 20.10 | 需支持 Compose V2 |
+| Docker Compose | >= 2.0 | 即 `docker compose`（非 `docker-compose`） |
+| Supabase Self-hosted | 最新版（跟随 Git 仓库） | `git clone` 即为最新 |
+| Caddy | >= 2.0（推荐 2.7+） | 自动 HTTPS 需 2.x |
+| PostgreSQL | 15.x（Supabase Docker 内置） | 无需单独安装 |
+
 ### 服务器最低配置
 
 - CPU: 2 核
@@ -43,9 +55,9 @@ systemctl enable docker --now
 # 安装 Docker Compose 插件
 apt install -y docker-compose-plugin
 
-# 验证
-docker --version
-docker compose version
+# 验证（Docker >= 20.10，Compose >= 2.0）
+docker --version          # Docker version 27.x.x
+docker compose version    # Docker Compose version v2.x.x
 ```
 
 ### 1.3 安装 Node.js 20
@@ -54,9 +66,9 @@ docker compose version
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
 
-# 验证
+# 验证（Node >= 18.18，npm >= 9）
 node -v   # v20.x.x
-npm -v
+npm -v    # 10.x.x
 ```
 
 ### 1.4 安装 PM2
@@ -73,6 +85,9 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmo
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
 apt update
 apt install -y caddy
+
+# 验证（Caddy >= 2.0）
+caddy version    # v2.7.x 或更高
 ```
 
 ---
