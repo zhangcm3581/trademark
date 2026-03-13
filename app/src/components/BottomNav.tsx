@@ -15,20 +15,20 @@ const allTabs = [
 export default function BottomNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [showDiscount, setShowDiscount] = useState(true);
+  const [showDiscount, setShowDiscount] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch('/api/settings')
       .then(res => res.json())
       .then(data => {
-        if (data.show_discount_tab !== undefined) {
-          setShowDiscount(data.show_discount_tab === 'true');
-        }
+        setShowDiscount(data.show_discount_tab !== 'false');
       })
-      .catch(() => {});
+      .catch(() => setShowDiscount(true));
   }, []);
 
-  const tabs = showDiscount ? allTabs : allTabs.filter(t => t.key !== 'discount');
+  const tabs = showDiscount === false
+    ? allTabs.filter(t => t.key !== 'discount')
+    : allTabs;
 
   const getIsActive = (href: string) => {
     if (pathname.startsWith(href)) return true;
@@ -42,7 +42,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+    <nav className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 transition-opacity duration-150 ${showDiscount === null ? 'opacity-0' : 'opacity-100'}`}>
       <div className="max-w-lg mx-auto flex">
         {tabs.map((tab) => {
           const isActive = getIsActive(tab.href);

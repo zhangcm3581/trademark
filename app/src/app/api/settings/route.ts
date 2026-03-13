@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET() {
   const settings = await getAllSettings();
   const res = NextResponse.json(settings);
-  res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+  res.headers.set('Cache-Control', 'private, no-cache');
   return res;
 }
 
