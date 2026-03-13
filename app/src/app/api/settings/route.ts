@@ -1,20 +1,12 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { getAllSettings, invalidateSettingsCache } from '@/lib/settings';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.from('settings').select('key, value');
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const settings: Record<string, string> = {};
-  data?.forEach((row: { key: string; value: string }) => {
-    settings[row.key] = row.value;
-  });
-
-  return NextResponse.json(settings);
+  const settings = await getAllSettings();
+  const res = NextResponse.json(settings);
+  res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+  return res;
 }
 
 export async function PUT(request: NextRequest) {
@@ -25,7 +17,6 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = await request.json();
-  // body is { key: value, key2: value2, ... }
 
   for (const [key, value] of Object.entries(body)) {
     const { error } = await supabase
@@ -35,6 +26,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
   }
+
+  invalidateSettingsCache();
 
   return NextResponse.json({ success: true });
 }

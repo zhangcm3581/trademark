@@ -9,29 +9,16 @@ export async function GET(request: NextRequest) {
 
   const threshold = await getDiscountThreshold();
 
-  let query = supabase.from('trademarks').select('category');
-
-  if (type === 'premium') {
-    query = query.gte('price', threshold);
-  } else if (type === 'discount') {
-    query = query.lt('price', threshold);
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc('count_trademarks_by_category', {
+    price_filter: type || null,
+    price_threshold: threshold,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Count by category
-  const counts: Record<number, number> = {};
-  data?.forEach((row: { category: number }) => {
-    counts[row.category] = (counts[row.category] || 0) + 1;
-  });
-
-  const result = Object.entries(counts)
-    .map(([category, count]) => ({ category: parseInt(category), count }))
-    .sort((a, b) => a.category - b.category);
-
-  return NextResponse.json(result);
+  const res = NextResponse.json(data);
+  res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+  return res;
 }

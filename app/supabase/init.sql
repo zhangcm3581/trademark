@@ -111,3 +111,40 @@ INSERT INTO settings (key, value) VALUES ('show_discount_tab', 'true')
   ON CONFLICT (key) DO NOTHING;
 
 -- 注：图片以 base64 格式存储在 image_url 字段中，无需额外存储桶
+
+-- ============================================
+-- 4. 聚合函数（性能优化，避免 N+1 查询）
+-- ============================================
+
+-- 按类别统计商标数量
+CREATE OR REPLACE FUNCTION count_trademarks_by_category(
+  price_filter TEXT DEFAULT NULL,
+  price_threshold NUMERIC DEFAULT 0
+)
+RETURNS TABLE(category INT, count BIGINT) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT t.category, COUNT(*)::BIGINT
+    FROM trademarks t
+    WHERE
+      CASE
+        WHEN price_filter = 'premium' THEN t.price >= price_threshold
+        WHEN price_filter = 'discount' THEN t.price < price_threshold
+        ELSE TRUE
+      END
+    GROUP BY t.category
+    ORDER BY t.category;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- 按国家统计国际商标数量
+CREATE OR REPLACE FUNCTION count_international_by_country()
+RETURNS TABLE(country TEXT, count BIGINT) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT t.country, COUNT(*)::BIGINT
+    FROM international_trademarks t
+    GROUP BY t.country
+    ORDER BY COUNT(*) DESC;
+END;
+$$ LANGUAGE plpgsql STABLE;

@@ -20,7 +20,7 @@ export default function TrademarkCard({ item, isIntl = false }: Props) {
         <div className="flex">
           <div className="w-24 h-24 flex-shrink-0 bg-gray-50 border border-gray-100 rounded flex items-center justify-center overflow-hidden">
             {item.image_url ? (
-              <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
+              <img src={item.image_url} alt={item.name} loading="lazy" className="w-full h-full object-contain" />
             ) : (
               <span className="text-xl font-bold text-gray-700 text-center leading-tight px-1">
                 {item.name}
