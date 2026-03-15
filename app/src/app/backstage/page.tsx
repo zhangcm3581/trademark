@@ -269,15 +269,21 @@ export default function AdminPage() {
                       />
                     </td>
                     <td className="px-3 py-2">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt="" className="w-9 h-9 object-contain rounded border border-gray-200 bg-white" />
-                      ) : (
-                        <div className="w-9 h-9 rounded border border-gray-200 bg-gray-50 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5" />
-                          </svg>
-                        </div>
-                      )}
+                      <img
+                        src={`/api/${tab === 'international' ? 'international' : 'trademarks'}/${item.id}/image`}
+                        alt=""
+                        decoding="async"
+                        className="w-9 h-9 object-contain rounded border border-gray-200 bg-white"
+                        onError={(e) => {
+                          const el = e.currentTarget;
+                          el.style.display = 'none';
+                          if (el.nextElementSibling) return;
+                          const div = document.createElement('div');
+                          div.className = 'w-9 h-9 rounded border border-gray-200 bg-gray-50 flex items-center justify-center';
+                          div.innerHTML = '<svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5" /></svg>';
+                          el.parentElement!.appendChild(div);
+                        }}
+                      />
                     </td>
                     <td className="px-3 py-2 font-medium text-gray-800">{item.name}</td>
                     <td className="px-3 py-2">
