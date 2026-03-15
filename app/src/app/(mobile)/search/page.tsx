@@ -18,7 +18,6 @@ export default function SearchPage() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   const handleSearch = async () => {
-    if (!keyword.trim()) return;
     setLoading(true);
     setSearched(true);
 

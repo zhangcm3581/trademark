@@ -2,6 +2,7 @@ import { getAuthUser } from '@/lib/auth';
 import { getAllSettings, invalidateSettingsCache } from '@/lib/settings';
 import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 
 export async function GET() {
   const settings = await getAllSettings();
@@ -30,6 +31,7 @@ export async function PUT(request: NextRequest) {
   }
 
   invalidateSettingsCache();
+  revalidatePath('/', 'layout');
 
   return NextResponse.json({ success: true });
 }
