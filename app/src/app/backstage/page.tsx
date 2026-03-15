@@ -34,7 +34,7 @@ export default function AdminPage() {
       params.set('searchField', 'name');
     }
 
-    const endpoint = tab === 'domestic' ? '/api/trademarks' : '/api/international';
+    const endpoint = tab === 'domestic' ? '/api/backstage/trademarks' : '/api/backstage/international';
     const res = await fetch(`${endpoint}?${params}`);
     const json = await res.json();
     setItems(json.data || []);
