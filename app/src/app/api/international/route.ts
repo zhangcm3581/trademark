@@ -1,8 +1,8 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { RowDataPacket } from 'mysql2';
 
 export async function GET(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
   const { searchParams } = new URL(request.url);
 
   const country = searchParams.get('country');
@@ -12,30 +12,45 @@ export async function GET(request: NextRequest) {
   const pageSize = parseInt(searchParams.get('pageSize') || '20');
   const ids = searchParams.get('ids');
 
-  let query = supabase.from('international_trademarks').select('*', { count: 'exact' });
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
 
   if (ids) {
-    query = query.in('id', ids.split(','));
+    const idList = ids.split(',');
+    conditions.push(`id IN (${idList.map(() => '?').join(',')})`);
+    params.push(...idList);
   }
 
   if (country) {
-    query = query.eq('country', country);
+    conditions.push('country = ?');
+    params.push(country);
   }
 
   if (keyword && searchField === 'trademark_no') {
-    query = query.ilike('trademark_no', `%${keyword}%`);
+    conditions.push('trademark_no LIKE ?');
+    params.push(`%${keyword}%`);
   } else if (keyword) {
-    query = query.ilike('name', `%${keyword}%`);
+    conditions.push('name LIKE ?');
+    params.push(`%${keyword}%`);
   }
 
-  query = query.order('created_at', { ascending: false });
-  query = query.range((page - 1) * pageSize, page * pageSize - 1);
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const offset = (page - 1) * pageSize;
 
-  const { data, error, count } = await query;
+  try {
+    const [countRows] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM international_trademarks ${where}`,
+      params
+    );
+    const total = countRows[0].total;
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const [data] = await pool.query<RowDataPacket[]>(
+      `SELECT * FROM international_trademarks ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset]
+    );
+
+    return NextResponse.json({ data, total, page, pageSize });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-
-  return NextResponse.json({ data, total: count, page, pageSize });
 }

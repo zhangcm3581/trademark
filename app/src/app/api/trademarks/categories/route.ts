@@ -1,24 +1,33 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDiscountThreshold } from '@/lib/settings';
+import { RowDataPacket } from 'mysql2';
 
 export async function GET(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
   const { searchParams } = new URL(request.url);
-  const type = searchParams.get('type'); // premium | discount
+  const type = searchParams.get('type');
 
   const threshold = await getDiscountThreshold();
 
-  const { data, error } = await supabase.rpc('count_trademarks_by_category', {
-    price_filter: type || null,
-    price_threshold: threshold,
-  });
+  let sql = 'SELECT category, COUNT(*) as count FROM trademarks';
+  const params: number[] = [];
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (type === 'premium') {
+    sql += ' WHERE price >= ?';
+    params.push(threshold);
+  } else if (type === 'discount') {
+    sql += ' WHERE price < ?';
+    params.push(threshold);
   }
 
-  const res = NextResponse.json(data);
-  res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-  return res;
+  sql += ' GROUP BY category ORDER BY category';
+
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(sql, params);
+    const res = NextResponse.json(rows);
+    res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return res;
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 }

@@ -1,5 +1,6 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { getAuthUser } from '@/lib/auth';
 import { getAllSettings, invalidateSettingsCache } from '@/lib/settings';
+import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
@@ -10,8 +11,7 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -19,11 +19,13 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
 
   for (const [key, value] of Object.entries(body)) {
-    const { error } = await supabase
-      .from('settings')
-      .upsert({ key, value: String(value), updated_at: new Date().toISOString() }, { onConflict: 'key' });
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    try {
+      await pool.query(
+        'INSERT INTO settings (`key`, `value`, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), updated_at = NOW()',
+        [key, String(value)]
+      );
+    } catch (err) {
+      return NextResponse.json({ error: String(err) }, { status: 500 });
     }
   }
 

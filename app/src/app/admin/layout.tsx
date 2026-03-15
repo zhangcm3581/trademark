@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase';
 
 const menuItems = [
   {
@@ -39,10 +38,9 @@ const menuItems = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
     if (pathname === '/admin/login') {
@@ -51,16 +49,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
+    fetch('/api/auth/me')
+      .then(res => {
+        if (!res.ok) {
+          router.replace('/admin/login');
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data) {
+          setAuthenticated(true);
+          setUserName(data.username || '');
+        }
+        setChecking(false);
+      })
+      .catch(() => {
         router.replace('/admin/login');
-      } else {
-        setAuthenticated(true);
-        setUserEmail(user.email || '');
-      }
-      setChecking(false);
-    });
-  }, [pathname, router, supabase.auth]);
+        setChecking(false);
+      });
+  }, [pathname, router]);
 
   if (checking) {
     return (
@@ -83,7 +91,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-[13px]">
-      {/* Sidebar */}
       <aside className="w-52 bg-slate-900 text-white flex-shrink-0 fixed inset-y-0 left-0 z-30 flex flex-col shadow-xl">
         <div className="px-4 py-4 border-b border-white/5">
           <div className="flex items-center gap-2.5">
@@ -118,18 +125,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
 
-        {/* User info at sidebar bottom */}
         <div className="px-3 py-3 border-t border-white/5">
           <div className="flex items-center gap-2 px-1">
             <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[11px] font-medium text-slate-300">
-              {userEmail.charAt(0).toUpperCase()}
+              {userName.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-slate-300 truncate">{userEmail}</p>
+              <p className="text-[11px] text-slate-300 truncate">{userName}</p>
             </div>
             <button
               onClick={async () => {
-                await supabase.auth.signOut();
+                await fetch('/api/auth/logout', { method: 'POST' });
                 router.replace('/admin/login');
               }}
               title="退出登录"
@@ -143,7 +149,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="flex-1 ml-52 flex flex-col min-h-screen">
         <main className="flex-1 p-5">
           {children}

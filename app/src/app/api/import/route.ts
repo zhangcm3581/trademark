@@ -1,5 +1,7 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import pool from '@/lib/db';
+import { getAuthUser } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { RowDataPacket } from 'mysql2';
 
 function addYears(dateStr: string, years: number): string {
   const d = new Date(dateStr);
@@ -8,17 +10,13 @@ function addYears(dateStr: string, years: number): string {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const body = await request.json();
   const { type, records, images } = body;
-  // type: 'domestic' | 'international'
-  // records: parsed rows from Excel
-  // images: { [rowIndex]: base64 string } - images keyed by row
 
   if (type === 'domestic') {
     const rows = records.map((r: Record<string, unknown>, idx: number) => ({
@@ -39,27 +37,29 @@ export async function POST(request: NextRequest) {
 
     // Filter out duplicates by name
     const names = rows.map((r: { name: string }) => r.name).filter(Boolean);
-    const { data: existing } = await supabase
-      .from('trademarks')
-      .select('name')
-      .in('name', names);
-    const existingNames = new Set((existing || []).map((e: { name: string }) => e.name));
+    let existingNames = new Set<string>();
+    if (names.length > 0) {
+      const [existing] = await pool.query<RowDataPacket[]>(
+        `SELECT name FROM trademarks WHERE name IN (${names.map(() => '?').join(',')})`,
+        names
+      );
+      existingNames = new Set(existing.map((e: RowDataPacket) => e.name as string));
+    }
     const uniqueRows = rows.filter((r: { name: string }) => r.name && !existingNames.has(r.name));
     const skipped = rows.length - uniqueRows.length;
 
-    // Batch insert in chunks of 100
-    const chunkSize = 100;
+    // Batch insert
     let inserted = 0;
-    for (let i = 0; i < uniqueRows.length; i += chunkSize) {
-      const chunk = uniqueRows.slice(i, i + chunkSize);
-      const { error } = await supabase.from('trademarks').insert(chunk);
-      if (error) {
-        return NextResponse.json(
-          { error: error.message, inserted },
-          { status: 500 }
+    for (const row of uniqueRows) {
+      try {
+        await pool.query(
+          'INSERT INTO trademarks (name, category, price, products_services, `groups`, registration_date, valid_from, valid_to, application_count, trademark_no, ai_description, remark, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [row.name, row.category, row.price, row.products_services, row.groups, row.registration_date, row.valid_from, row.valid_to, row.application_count, row.trademark_no, row.ai_description, row.remark, row.image_url]
         );
+        inserted++;
+      } catch (err) {
+        return NextResponse.json({ error: String(err), inserted }, { status: 500 });
       }
-      inserted += chunk.length;
     }
 
     return NextResponse.json({ success: true, inserted, skipped });
@@ -84,26 +84,28 @@ export async function POST(request: NextRequest) {
 
     // Filter out duplicates by name
     const intlNames = rows.map((r: { name: string }) => r.name).filter(Boolean);
-    const { data: existingIntl } = await supabase
-      .from('international_trademarks')
-      .select('name')
-      .in('name', intlNames);
-    const existingIntlNames = new Set((existingIntl || []).map((e: { name: string }) => e.name));
+    let existingIntlNames = new Set<string>();
+    if (intlNames.length > 0) {
+      const [existingIntl] = await pool.query<RowDataPacket[]>(
+        `SELECT name FROM international_trademarks WHERE name IN (${intlNames.map(() => '?').join(',')})`,
+        intlNames
+      );
+      existingIntlNames = new Set(existingIntl.map((e: RowDataPacket) => e.name as string));
+    }
     const uniqueIntlRows = rows.filter((r: { name: string }) => r.name && !existingIntlNames.has(r.name));
     const intlSkipped = rows.length - uniqueIntlRows.length;
 
-    const chunkSize = 100;
     let inserted = 0;
-    for (let i = 0; i < uniqueIntlRows.length; i += chunkSize) {
-      const chunk = uniqueIntlRows.slice(i, i + chunkSize);
-      const { error } = await supabase.from('international_trademarks').insert(chunk);
-      if (error) {
-        return NextResponse.json(
-          { error: error.message, inserted },
-          { status: 500 }
+    for (const row of uniqueIntlRows) {
+      try {
+        await pool.query(
+          'INSERT INTO international_trademarks (country, name, description, trademark_no, category, price, registration_date, valid_from, valid_to, cn_items, local_items, en_items, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [row.country, row.name, row.description, row.trademark_no, row.category, row.price, row.registration_date, row.valid_from, row.valid_to, row.cn_items, row.local_items, row.en_items, row.image_url]
         );
+        inserted++;
+      } catch (err) {
+        return NextResponse.json({ error: String(err), inserted }, { status: 500 });
       }
-      inserted += chunk.length;
     }
 
     return NextResponse.json({ success: true, inserted, skipped: intlSkipped });

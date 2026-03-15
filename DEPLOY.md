@@ -13,15 +13,17 @@
 
 ### 版本要求
 
-| 组件 | 要求版本 | 说明 |
-|------|---------|------|
-| Node.js | >= 18.18.0（推荐 20.x） | Next.js 16 要求最低 18.18 |
-| npm | >= 9 | 随 Node.js 附带 |
-| Docker | >= 20.10 | 需支持 Compose V2 |
-| Docker Compose | >= 2.0 | 即 `docker compose`（非 `docker-compose`） |
-| Supabase Self-hosted | 最新版（跟随 Git 仓库） | `git clone` 即为最新 |
-| Caddy | >= 2.0（推荐 2.7+） | 自动 HTTPS 需 2.x |
-| PostgreSQL | 15.x（Supabase Docker 内置） | 无需单独安装 |
+
+| 组件                   | 要求版本                     | 说明                                     |
+| -------------------- | ------------------------ | -------------------------------------- |
+| Node.js              | >= 18.18.0（推荐 20.x）      | Next.js 16 要求最低 18.18                  |
+| npm                  | >= 9                     | 随 Node.js 附带                           |
+| Docker               | >= 20.10                 | 需支持 Compose V2                         |
+| Docker Compose       | >= 2.0                   | 即 `docker compose`（非 `docker-compose`） |
+| Supabase Self-hosted | 最新版（跟随 Git 仓库）           | `git clone` 即为最新                       |
+| Caddy                | >= 2.0（推荐 2.7+）          | 自动 HTTPS 需 2.x                         |
+| PostgreSQL           | 15.x（Supabase Docker 内置） | 无需单独安装                                 |
+
 
 ### 服务器最低配置
 
@@ -85,9 +87,6 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmo
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
 apt update
 apt install -y caddy
-
-# 验证（Caddy >= 2.0）
-caddy version    # v2.7.x 或更高
 ```
 
 ---
@@ -140,7 +139,7 @@ API_EXTERNAL_URL=https://api.你的域名.com
 ```
 
 > **关于 ANON_KEY**：如果你修改了 JWT_SECRET，需要重新生成 ANON_KEY 和 SERVICE_ROLE_KEY。
-> 生成方法见：https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+> 生成方法见：[https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys](https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys)
 >
 > 如果保持默认的 JWT_SECRET 不改（仅测试用），则 ANON_KEY 也保持默认即可。
 
@@ -161,10 +160,12 @@ docker compose ps
 
 本机端口说明（无需对外暴露）：
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
+
+| 服务                         | 端口   | 说明                 |
+| -------------------------- | ---- | ------------------ |
 | Supabase Studio + Kong API | 8000 | 管理面板 + REST API 入口 |
-| PostgreSQL | 5432 | 数据库（Docker 内部通信） |
+| PostgreSQL                 | 5432 | 数据库（Docker 内部通信）   |
+
 
 ### 2.5 初始化数据库
 
@@ -263,10 +264,12 @@ curl http://127.0.0.1:3000
 
 在你的域名服务商处添加两条 A 记录，都指向服务器公网 IP：
 
-| 记录类型 | 主机记录 | 记录值 |
-|---------|---------|--------|
-| A | @ | 服务器公网IP |
-| A | api | 服务器公网IP |
+
+| 记录类型 | 主机记录 | 记录值     |
+| ---- | ---- | ------- |
+| A    | @    | 服务器公网IP |
+| A    | api  | 服务器公网IP |
+
 
 ### 4.2 配置 Caddyfile
 
@@ -319,13 +322,15 @@ ufw reload
 
 按顺序访问：
 
-| 步骤 | 地址 | 预期结果 |
-|------|------|---------|
-| 1 | `https://你的域名.com` | 精品商标首页 |
-| 2 | `https://你的域名.com/admin/login` | 管理员登录页 |
-| 3 | 用步骤 2.6 的账号登录 | 进入管理后台 |
-| 4 | `https://你的域名.com/admin/settings` | 系统设置页 |
-| 5 | `https://你的域名.com/admin/import` | Excel 导入页 |
+
+| 步骤  | 地址                                | 预期结果      |
+| --- | --------------------------------- | --------- |
+| 1   | `https://你的域名.com`                | 精品商标首页    |
+| 2   | `https://你的域名.com/admin/login`    | 管理员登录页    |
+| 3   | 用步骤 2.6 的账号登录                     | 进入管理后台    |
+| 4   | `https://你的域名.com/admin/settings` | 系统设置页     |
+| 5   | `https://你的域名.com/admin/import`   | Excel 导入页 |
+
 
 ---
 
@@ -394,15 +399,18 @@ docker system prune -f        # 清理无用镜像
 
 ## 七、页面入口汇总
 
-| 地址 | 说明 |
-|------|------|
-| `/` | 首页（跳转到精品商标） |
-| `/premium` | 精品商标 |
-| `/discount` | 特惠商标 |
-| `/international` | 国际商标 |
-| `/search` | 商标搜索 |
-| `/favorites` | 我的收藏 |
-| `/admin/login` | 管理后台登录 |
-| `/admin` | 商标管理 |
-| `/admin/import` | Excel 导入 |
+
+| 地址                | 说明                |
+| ----------------- | ----------------- |
+| `/`               | 首页（跳转到精品商标）       |
+| `/premium`        | 精品商标              |
+| `/discount`       | 特惠商标              |
+| `/international`  | 国际商标              |
+| `/search`         | 商标搜索              |
+| `/favorites`      | 我的收藏              |
+| `/admin/login`    | 管理后台登录            |
+| `/admin`          | 商标管理              |
+| `/admin/import`   | Excel 导入          |
 | `/admin/settings` | 系统设置（特惠商标开关、价格阈值） |
+
+

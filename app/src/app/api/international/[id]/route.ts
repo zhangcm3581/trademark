@@ -1,22 +1,25 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import pool from '@/lib/db';
+import { getAuthUser } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from('international_trademarks')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 404 });
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT * FROM international_trademarks WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    return NextResponse.json(rows[0]);
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-  return NextResponse.json(data);
 }
 
 export async function PUT(
@@ -24,24 +27,30 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const body = await request.json();
-  const { data, error } = await supabase
-    .from('international_trademarks')
-    .update(body)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  const fields = Object.keys(body);
+  if (fields.length === 0) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
-  return NextResponse.json(data);
+
+  const setClauses = fields.map(f => `\`${f}\` = ?`).join(', ');
+  const values = fields.map(f => body[f]);
+
+  try {
+    await pool.query<ResultSetHeader>(
+      `UPDATE international_trademarks SET ${setClauses} WHERE id = ?`,
+      [...values, id]
+    );
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM international_trademarks WHERE id = ?', [id]);
+    return NextResponse.json(rows[0]);
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 }
 
 export async function DELETE(
@@ -49,15 +58,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { error } = await supabase.from('international_trademarks').delete().eq('id', id);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    await pool.query('DELETE FROM international_trademarks WHERE id = ?', [id]);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-  return NextResponse.json({ success: true });
 }

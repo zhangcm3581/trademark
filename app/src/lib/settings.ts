@@ -1,5 +1,6 @@
-import { createServerSupabaseClient } from './supabase-server';
+import pool from './db';
 import { PREMIUM_PRICE_THRESHOLD } from './constants';
+import { RowDataPacket } from 'mysql2';
 
 // Server-side memory cache (60s TTL)
 let settingsCache: { data: Record<string, string>; ts: number } | null = null;
@@ -11,11 +12,10 @@ export async function getAllSettings(): Promise<Record<string, string>> {
   }
 
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.from('settings').select('key, value');
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT `key`, `value` FROM settings');
     const settings: Record<string, string> = {};
-    data?.forEach((row: { key: string; value: string }) => {
-      settings[row.key] = row.value;
+    rows.forEach((row: RowDataPacket) => {
+      settings[row.key as string] = row.value as string;
     });
     settingsCache = { data: settings, ts: Date.now() };
     return settings;

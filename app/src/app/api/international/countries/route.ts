@@ -1,16 +1,16 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import pool from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { RowDataPacket } from 'mysql2';
 
 export async function GET() {
-  const supabase = await createServerSupabaseClient();
-
-  const { data, error } = await supabase.rpc('count_international_by_country');
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT country, COUNT(*) as count FROM international_trademarks GROUP BY country ORDER BY count DESC'
+    );
+    const res = NextResponse.json(rows);
+    res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return res;
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-
-  const res = NextResponse.json(data);
-  res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-  return res;
 }

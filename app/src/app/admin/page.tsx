@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@/lib/supabase';
 import { CATEGORY_NAMES } from '@/lib/constants';
 import type { Trademark, InternationalTrademark } from '@/types';
 

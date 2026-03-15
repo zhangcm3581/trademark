@@ -61,15 +61,11 @@ function DetailContent() {
             </svg>
           </button>
           <h1 className="font-bold text-base">{item.name} 商标详情</h1>
-          <div className="w-5" />
+          <FavoriteButton id={item.id} isIntl={isIntl} size="md" />
         </div>
       </header>
 
-      <div className="mx-4 mt-4 relative">
-        <div className="absolute top-2 right-2 z-10">
-          <FavoriteButton id={item.id} isIntl={isIntl} size="md" />
-        </div>
-
+      <div className="mx-4 mt-4">
         <div className="flex items-center justify-center bg-gray-50 p-8 rounded-lg border border-gray-100" style={{ minHeight: 200 }}>
           {item.image_url ? (
             <img src={item.image_url} alt={item.name} className="max-h-52 object-contain" />

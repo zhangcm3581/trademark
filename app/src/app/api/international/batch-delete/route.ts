@@ -1,9 +1,9 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import pool from '@/lib/db';
+import { getAuthUser } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -13,10 +13,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'ids is required' }, { status: 400 });
   }
 
-  const { error } = await supabase.from('international_trademarks').delete().in('id', ids);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    await pool.query(
+      `DELETE FROM international_trademarks WHERE id IN (${ids.map(() => '?').join(',')})`,
+      ids
+    );
+    return NextResponse.json({ success: true, deleted: ids.length });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, deleted: ids.length });
 }
