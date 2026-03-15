@@ -61,8 +61,11 @@ export async function GET(request: NextRequest) {
     );
     const total = countRows[0].total;
 
+    const listFields = ids
+      ? '*'
+      : 'id, name, category, price, \`groups\`, registration_date, valid_from, valid_to, trademark_no, remark, created_at';
     const [data] = await pool.query<RowDataPacket[]>(
-      `SELECT * FROM trademarks ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT ${listFields} FROM trademarks ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
     );
 
