@@ -22,7 +22,9 @@ export default function TrademarkCard({ item, isIntl = false }: Props) {
             <img
               src={item.image_url || `/api/${isIntl ? 'international' : 'trademarks'}/${item.id}/image`}
               alt={item.name}
-              loading="lazy"
+              decoding="async"
+              width={96}
+              height={96}
               className="w-full h-full object-contain"
               onError={(e) => {
                 const el = e.currentTarget;

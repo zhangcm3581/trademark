@@ -39,13 +39,22 @@ function ListContent() {
     const res = await fetch(`${endpoint}?${params}`);
     const json = await res.json();
 
+    const newData = json.data || [];
     if (pageNum === 1) {
-      setItems(json.data || []);
+      setItems(newData);
     } else {
-      setItems(prev => [...prev, ...(json.data || [])]);
+      setItems(prev => [...prev, ...newData]);
     }
     setTotal(json.total || 0);
     setLoading(false);
+
+    // 预加载图片
+    newData.forEach((item: Trademark | InternationalTrademark) => {
+      if (!item.image_url) {
+        const img = new Image();
+        img.src = `/api/${isIntl ? 'international' : 'trademarks'}/${item.id}/image`;
+      }
+    });
   }, [type, category, country, isIntl]);
 
   useEffect(() => {
