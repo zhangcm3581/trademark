@@ -39,7 +39,7 @@ function EditContent() {
     });
     const json = await res.json();
     if (res.ok) {
-      router.push('/admin');
+      router.push('/backstage');
     } else {
       setError(json.error || '保存失败');
     }

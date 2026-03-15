@@ -263,10 +263,10 @@ ufw reload
 | 步骤 | 地址                                | 预期结果       |
 | ---- | ----------------------------------- | -------------- |
 | 1    | `https://你的域名.com`              | 精品商标首页   |
-| 2    | `https://你的域名.com/admin/login`  | 管理员登录页   |
+| 2    | `https://你的域名.com/backstage/login`  | 管理员登录页   |
 | 3    | 用 admin / admin123 登录            | 进入管理后台   |
-| 4    | `https://你的域名.com/admin/settings` | 系统设置页   |
-| 5    | `https://你的域名.com/admin/import` | Excel 导入页   |
+| 4    | `https://你的域名.com/backstage/settings` | 系统设置页   |
+| 5    | `https://你的域名.com/backstage/import` | Excel 导入页   |
 
 ---
 
@@ -354,7 +354,7 @@ free -h                       # 内存
 | `/international`  | 国际商标                          |
 | `/search`         | 商标搜索                          |
 | `/favorites`      | 我的收藏                          |
-| `/admin/login`    | 管理后台登录（用户名/密码）       |
-| `/admin`          | 商标管理                          |
-| `/admin/import`   | Excel 导入                        |
-| `/admin/settings` | 系统设置（特惠商标开关、价格阈值）|
+| `/backstage/login`    | 管理后台登录（用户名/密码）       |
+| `/backstage`          | 商标管理                          |
+| `/backstage/import`   | Excel 导入                        |
+| `/backstage/settings` | 系统设置（特惠商标开关、价格阈值）|

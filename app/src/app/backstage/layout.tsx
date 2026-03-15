@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 const menuItems = [
   {
-    href: '/admin',
+    href: '/backstage',
     label: '商标列表',
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -15,7 +15,7 @@ const menuItems = [
     ),
   },
   {
-    href: '/admin/import',
+    href: '/backstage/import',
     label: 'Excel 导入',
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -24,7 +24,7 @@ const menuItems = [
     ),
   },
   {
-    href: '/admin/settings',
+    href: '/backstage/settings',
     label: '系统设置',
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -43,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   useEffect(() => {
-    if (pathname === '/admin/login') {
+    if (pathname === '/backstage/login') {
       setChecking(false);
       setAuthenticated(true);
       return;
@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetch('/api/auth/me')
       .then(res => {
         if (!res.ok) {
-          router.replace('/admin/login');
+          router.replace('/backstage/login');
           return null;
         }
         return res.json();
@@ -65,7 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setChecking(false);
       })
       .catch(() => {
-        router.replace('/admin/login');
+        router.replace('/backstage/login');
         setChecking(false);
       });
   }, [pathname, router]);
@@ -80,12 +80,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!authenticated) return null;
 
-  if (pathname === '/admin/login') {
+  if (pathname === '/backstage/login') {
     return <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">{children}</div>;
   }
 
   const isActive = (href: string) => {
-    if (href === '/admin') return pathname === '/admin' || pathname.startsWith('/admin/edit');
+    if (href === '/backstage') return pathname === '/backstage' || pathname.startsWith('/backstage/edit');
     return pathname.startsWith(href);
   };
 
@@ -136,7 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               onClick={async () => {
                 await fetch('/api/auth/logout', { method: 'POST' });
-                router.replace('/admin/login');
+                router.replace('/backstage/login');
               }}
               title="退出登录"
               className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-red-400 transition-colors"

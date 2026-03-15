@@ -27,7 +27,7 @@ export default function AdminLoginPage() {
         setLoading(false);
         return;
       }
-      router.replace('/admin');
+      router.replace('/backstage');
     } catch {
       setError('网络错误');
       setLoading(false);
