@@ -6,9 +6,11 @@ import { CATEGORY_NAMES, getCategoryIcon } from '@/lib/constants';
 export default function SettingsPage() {
   const [threshold, setThreshold] = useState('5000');
   const [showDiscountTab, setShowDiscountTab] = useState(true);
+  const [showPrice, setShowPrice] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingTab, setSavingTab] = useState(false);
+  const [savingPrice, setSavingPrice] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -20,6 +22,9 @@ export default function SettingsPage() {
         }
         if (data.show_discount_tab !== undefined) {
           setShowDiscountTab(data.show_discount_tab === 'true');
+        }
+        if (data.show_price !== undefined) {
+          setShowPrice(data.show_price === 'true');
         }
         setLoading(false);
       })
@@ -73,29 +78,68 @@ export default function SettingsPage() {
     setSavingTab(false);
   };
 
+  const handleToggleShowPrice = async () => {
+    setSavingPrice(true);
+    const newValue = !showPrice;
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ show_price: String(newValue) }),
+      });
+      if (res.ok) {
+        setShowPrice(newValue);
+      }
+    } catch {
+      // ignore
+    }
+    setSavingPrice(false);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Discount tab toggle */}
+      {/* Display toggles */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-base font-bold mb-4">菜单显示设置</h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-700">显示「特惠商标」菜单</p>
-            <p className="text-xs text-gray-400 mt-1">关闭后，底部导航栏将隐藏「特惠商标」入口</p>
+        <h3 className="text-base font-bold mb-4">前台显示设置</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">显示「特惠商标」菜单</p>
+              <p className="text-xs text-gray-400 mt-1">关闭后，底部导航栏将隐藏「特惠商标」入口</p>
+            </div>
+            <button
+              onClick={handleToggleDiscountTab}
+              disabled={savingTab}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                showDiscountTab ? 'bg-blue-500' : 'bg-gray-300'
+              } ${savingTab ? 'opacity-50' : ''}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  showDiscountTab ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
-          <button
-            onClick={handleToggleDiscountTab}
-            disabled={savingTab}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              showDiscountTab ? 'bg-blue-500' : 'bg-gray-300'
-            } ${savingTab ? 'opacity-50' : ''}`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                showDiscountTab ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div>
+              <p className="text-sm font-medium text-gray-700">显示商标价格</p>
+              <p className="text-xs text-gray-400 mt-1">关闭后，前台商标列表和详情页将隐藏价格信息</p>
+            </div>
+            <button
+              onClick={handleToggleShowPrice}
+              disabled={savingPrice}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                showPrice ? 'bg-blue-500' : 'bg-gray-300'
+              } ${savingPrice ? 'opacity-50' : ''}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  showPrice ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </div>
 

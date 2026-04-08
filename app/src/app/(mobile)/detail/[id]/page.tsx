@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import FavoriteButton from '@/components/FavoriteButton';
-import { CATEGORY_NAMES } from '@/lib/constants';
+import { usePublicSettings } from '@/components/SettingsProvider';
+import { CATEGORY_NAMES, PREMIUM_PRICE_THRESHOLD } from '@/lib/constants';
 import type { Trademark, InternationalTrademark } from '@/types';
 
 function DetailContent() {
@@ -13,6 +14,7 @@ function DetailContent() {
   const id = params.id as string;
   const type = searchParams.get('type') || 'domestic';
   const isIntl = type === 'intl';
+  const { showPrice } = usePublicSettings();
 
   const [item, setItem] = useState<Trademark | InternationalTrademark | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +81,14 @@ function DetailContent() {
         <p className="text-lg font-bold">
           {item.name} （第 {item.category} 类）
         </p>
+        {showPrice && (
+          <p className="flex items-baseline justify-center gap-1">
+            <span className="text-gray-700">价格：</span>
+            <span className={`font-bold text-xl ${item.price >= PREMIUM_PRICE_THRESHOLD ? 'text-amber-600' : 'text-red-500'}`}>
+              {item.price > 0 ? `¥${Number(item.price).toLocaleString()}` : '面议'}
+            </span>
+          </p>
+        )}
         <p className="text-gray-700">注册号：{item.trademark_no}</p>
         <p className="text-gray-700">申请日期：{item.registration_date}</p>
         <p className="text-gray-700 font-medium">

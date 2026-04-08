@@ -7,6 +7,9 @@ export async function GET(request: NextRequest) {
 
   const keyword = searchParams.get('keyword');
   const searchField = searchParams.get('searchField');
+  const category = searchParams.get('category');
+  const priceMin = searchParams.get('priceMin');
+  const priceMax = searchParams.get('priceMax');
   const page = parseInt(searchParams.get('page') || '1');
   const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
@@ -19,6 +22,21 @@ export async function GET(request: NextRequest) {
   } else if (keyword) {
     conditions.push('name LIKE ?');
     params.push(`%${keyword}%`);
+  }
+
+  if (category) {
+    conditions.push('category = ?');
+    params.push(parseInt(category));
+  }
+
+  if (priceMin && !isNaN(Number(priceMin))) {
+    conditions.push('price >= ?');
+    params.push(Number(priceMin));
+  }
+
+  if (priceMax && !isNaN(Number(priceMax))) {
+    conditions.push('price <= ?');
+    params.push(Number(priceMax));
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

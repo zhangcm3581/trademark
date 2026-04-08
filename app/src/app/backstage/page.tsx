@@ -5,23 +5,27 @@ import { CATEGORY_NAMES } from '@/lib/constants';
 import type { Trademark, InternationalTrademark } from '@/types';
 
 type TabType = 'domestic' | 'international';
-type ModalType = 'edit' | 'delete' | 'batchDelete' | null;
+type ModalType = 'edit' | 'delete' | 'batchDelete' | 'batchUpdatePrice' | null;
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200, 500, 1000, 2000];
 
 export default function AdminPage() {
   const [tab, setTab] = useState<TabType>('domestic');
   const [items, setItems] = useState<(Trademark | InternationalTrademark)[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(50);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [priceMin, setPriceMin] = useState<string>('');
+  const [priceMax, setPriceMax] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [modal, setModal] = useState<ModalType>(null);
   const [editItem, setEditItem] = useState<Trademark | InternationalTrademark | null>(null);
   const [deleteItem, setDeleteItem] = useState<Trademark | InternationalTrademark | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number>>({});
+  const [batchPrice, setBatchPrice] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -33,6 +37,15 @@ export default function AdminPage() {
       params.set('keyword', search);
       params.set('searchField', 'name');
     }
+    if (categoryFilter) {
+      params.set('category', categoryFilter);
+    }
+    if (priceMin) {
+      params.set('priceMin', priceMin);
+    }
+    if (priceMax) {
+      params.set('priceMax', priceMax);
+    }
 
     const endpoint = tab === 'domestic' ? '/api/backstage/trademarks' : '/api/backstage/international';
     const res = await fetch(`${endpoint}?${params}`);
@@ -40,7 +53,7 @@ export default function AdminPage() {
     setItems(json.data || []);
     setTotal(json.total || 0);
     setLoading(false);
-  }, [tab, page, pageSize, search]);
+  }, [tab, page, pageSize, search, categoryFilter, priceMin, priceMax]);
 
   useEffect(() => {
     fetchData();
@@ -134,6 +147,33 @@ export default function AdminPage() {
     fetchData();
   };
 
+  // Batch update price
+  const openBatchUpdatePrice = () => {
+    setBatchPrice('');
+    setModal('batchUpdatePrice');
+  };
+
+  const handleBatchUpdatePrice = async () => {
+    const priceNum = Number(batchPrice);
+    if (batchPrice === '' || !Number.isFinite(priceNum) || priceNum < 0) return;
+    setSaving(true);
+    const ids = Array.from(selected);
+    const endpoint = tab === 'domestic'
+      ? '/api/trademarks/batch-update-price'
+      : '/api/international/batch-update-price';
+    try {
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, price: priceNum }),
+      });
+    } catch { /* ignore */ }
+    setSelected(new Set());
+    setModal(null);
+    setSaving(false);
+    fetchData();
+  };
+
   const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -160,7 +200,7 @@ export default function AdminPage() {
         <div className="flex items-center gap-3">
           <div className="flex bg-white border border-gray-200 rounded-lg p-0.5">
             <button
-              onClick={() => { setTab('domestic'); setPage(1); setSearch(''); }}
+              onClick={() => { setTab('domestic'); setPage(1); setSearch(''); setCategoryFilter(''); setPriceMin(''); setPriceMax(''); }}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 tab === 'domestic' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -168,7 +208,7 @@ export default function AdminPage() {
               国内商标
             </button>
             <button
-              onClick={() => { setTab('international'); setPage(1); setSearch(''); }}
+              onClick={() => { setTab('international'); setPage(1); setSearch(''); setCategoryFilter(''); setPriceMin(''); setPriceMax(''); }}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 tab === 'international' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -188,18 +228,61 @@ export default function AdminPage() {
               className="border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 w-44 bg-white"
             />
           </div>
+          <select
+            value={categoryFilter}
+            onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 bg-white text-gray-600 cursor-pointer"
+          >
+            <option value="">全部类别</option>
+            {Object.entries(CATEGORY_NAMES).map(([num, name]) => (
+              <option key={num} value={num}>{num}类 {name}</option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1 border border-gray-200 rounded-lg bg-white pl-2.5 pr-2.5 py-0.5">
+            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4" />
+            </svg>
+            <input
+              type="number"
+              min="0"
+              value={priceMin}
+              onChange={e => { setPriceMin(e.target.value); setPage(1); }}
+              placeholder="最低价"
+              className="w-16 text-xs outline-none text-gray-700 placeholder:text-gray-400"
+            />
+            <span className="text-gray-300 text-xs">—</span>
+            <input
+              type="number"
+              min="0"
+              value={priceMax}
+              onChange={e => { setPriceMax(e.target.value); setPage(1); }}
+              placeholder="最高价"
+              className="w-16 text-xs outline-none text-gray-700 placeholder:text-gray-400"
+            />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
-            <button
-              onClick={() => setModal('batchDelete')}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
-              删除选中 ({selected.size})
-            </button>
+            <>
+              <button
+                onClick={openBatchUpdatePrice}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4" />
+                </svg>
+                修改价格 ({selected.size})
+              </button>
+              <button
+                onClick={() => setModal('batchDelete')}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+                删除选中 ({selected.size})
+              </button>
+            </>
           )}
           <span className="text-xs text-gray-400">共 {total} 条</span>
         </div>
@@ -448,8 +531,19 @@ export default function AdminPage() {
                   <label className="block text-[11px] font-medium text-gray-500 mb-1">价格 (元)</label>
                   <input
                     type="number"
-                    value={editForm.price || ''}
-                    onChange={e => setEditForm(f => ({ ...f, price: parseInt(e.target.value) || 0 }))}
+                    min={0}
+                    value={editForm.price ?? ''}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (v === '') {
+                        setEditForm(f => ({ ...f, price: 0 }));
+                      } else {
+                        const n = parseInt(v);
+                        if (!isNaN(n) && n >= 0) {
+                          setEditForm(f => ({ ...f, price: n }));
+                        }
+                      }
+                    }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
                   />
                 </div>
@@ -600,6 +694,57 @@ export default function AdminPage() {
                 className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:bg-gray-300 transition-colors"
               >
                 {saving ? '删除中...' : `确认删除 ${selected.size} 条`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Update Price Modal */}
+      {modal === 'batchUpdatePrice' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-[380px]" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-11 h-11 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-0.5">批量修改价格</h3>
+                  <p className="text-xs text-gray-500">
+                    将选中的 <span className="font-medium text-amber-600">{selected.size}</span> 条商标统一设为新价格
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">新价格 (元)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={batchPrice}
+                  onChange={e => setBatchPrice(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && batchPrice !== '') handleBatchUpdatePrice(); }}
+                  placeholder="请输入新价格"
+                  autoFocus
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-5 py-3.5 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
+              <button
+                onClick={() => setModal(null)}
+                className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchUpdatePrice}
+                disabled={saving || batchPrice === '' || Number(batchPrice) < 0 || !Number.isFinite(Number(batchPrice))}
+                className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:bg-gray-300 transition-colors"
+              >
+                {saving ? '保存中...' : `确认修改 ${selected.size} 条`}
               </button>
             </div>
           </div>

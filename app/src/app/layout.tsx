@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "标小生",
+  title: "全国商标库",
   description: "商标分类展示、搜索、收藏",
 };
 

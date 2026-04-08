@@ -71,7 +71,7 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('discount_price_threshold', '5000'),
   ('show_discount_tab', 'true');
 
--- 默认管理员账号: admin / admin123 (请部署后立即修改密码)
--- 密码 hash 由 bcryptjs 生成: bcrypt.hashSync('admin123', 10)
+-- 管理员账号 (密码 hash 由 bcryptjs 生成)
 INSERT IGNORE INTO admin_users (username, password_hash) VALUES
-  ('admin', '$2b$10$VeSsrl1I8oBhTrB7AzW8wOdiQlxS8B4f7.twS4qsWeiQF5mwstmPC');
+  ('admin', '$2b$10$nh.09vXu.zYTJ96J2cb0LeoWXbupd.v1VzwSeiGEtHadpzZOG9P1S'),
+  ('xiaoyu', '$2b$10$nh.09vXu.zYTJ96J2cb0LeoWXbupd.v1VzwSeiGEtHadpzZOG9P1S');
