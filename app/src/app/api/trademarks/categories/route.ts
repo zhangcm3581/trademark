@@ -1,22 +1,24 @@
 import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDiscountThreshold } from '@/lib/settings';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { RowDataPacket } from 'mysql2';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
 
-  const threshold = await getDiscountThreshold();
+  const tenant = await resolveRequestTenant(request);
+  const threshold = await getDiscountThreshold(tenant);
 
-  let sql = 'SELECT category, COUNT(*) as count FROM trademarks';
-  const params: number[] = [];
+  let sql = 'SELECT category, COUNT(*) as count FROM trademarks WHERE tenant = ?';
+  const params: (string | number)[] = [tenant];
 
   if (type === 'premium') {
-    sql += ' WHERE price >= ?';
+    sql += ' AND price >= ?';
     params.push(threshold);
   } else if (type === 'discount') {
-    sql += ' WHERE price < ?';
+    sql += ' AND price < ?';
     params.push(threshold);
   }
 
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(sql, params);
     const res = NextResponse.json(rows);
-    res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    res.headers.set('Cache-Control', 'private, no-cache');
     return res;
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

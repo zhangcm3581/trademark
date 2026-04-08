@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { CATEGORY_NAMES, getCategoryIcon } from '@/lib/constants';
+import { useCurrentTenant, describeTenant } from '@/components/backstage/TenantBadge';
 
 export default function SettingsPage() {
+  const tenant = useCurrentTenant();
+  const tenantInfo = tenant ? describeTenant(tenant) : null;
   const [threshold, setThreshold] = useState('5000');
   const [showDiscountTab, setShowDiscountTab] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
@@ -14,18 +17,13 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     fetch('/api/settings')
       .then(res => res.json())
       .then(data => {
-        if (data.discount_price_threshold) {
-          setThreshold(data.discount_price_threshold);
-        }
-        if (data.show_discount_tab !== undefined) {
-          setShowDiscountTab(data.show_discount_tab === 'true');
-        }
-        if (data.show_price !== undefined) {
-          setShowPrice(data.show_price === 'true');
-        }
+        setThreshold(data.discount_price_threshold ?? '5000');
+        setShowDiscountTab(data.show_discount_tab !== 'false');
+        setShowPrice(data.show_price !== 'false');
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -98,6 +96,15 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-50 border border-blue-100">
+        <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+        </svg>
+        <p className="text-xs text-blue-700">
+          正在为租户 <span className="font-semibold">{tenantInfo ? `${tenantInfo.name} (${tenantInfo.host})` : '...'}</span> 修改设置，每个租户的设置互相独立
+        </p>
+      </div>
+
       {/* Display toggles */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-base font-bold mb-4">前台显示设置</h3>

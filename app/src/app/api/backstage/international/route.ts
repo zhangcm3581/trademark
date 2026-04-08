@@ -1,8 +1,16 @@
 import pool from '@/lib/db';
+import { getAuthUser } from '@/lib/auth';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { NextRequest, NextResponse } from 'next/server';
 import { RowDataPacket } from 'mysql2';
 
 export async function GET(request: NextRequest) {
+  const user = await getAuthUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const tenant = await resolveRequestTenant(request);
   const { searchParams } = new URL(request.url);
 
   const keyword = searchParams.get('keyword');
@@ -13,8 +21,8 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') || '1');
   const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
-  const conditions: string[] = [];
-  const params: (string | number)[] = [];
+  const conditions: string[] = ['tenant = ?'];
+  const params: (string | number)[] = [tenant];
 
   if (keyword && searchField === 'trademark_no') {
     conditions.push('trademark_no LIKE ?');
@@ -39,7 +47,7 @@ export async function GET(request: NextRequest) {
     params.push(Number(priceMax));
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = `WHERE ${conditions.join(' AND ')}`;
   const offset = (page - 1) * pageSize;
 
   try {

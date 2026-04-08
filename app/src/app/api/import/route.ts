@@ -1,5 +1,6 @@
 import pool from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { NextRequest, NextResponse } from 'next/server';
 import { RowDataPacket } from 'mysql2';
 
@@ -14,6 +15,8 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const tenant = await resolveRequestTenant(request);
 
   const body = await request.json();
   const { type, records, images } = body;
@@ -35,34 +38,33 @@ export async function POST(request: NextRequest) {
       image_url: images?.[idx] || null,
     }));
 
-    // Filter out duplicates by name
+    // 去重：仅在本租户范围内查重，跨租户允许同名
     const names = rows.map((r: { name: string }) => r.name).filter(Boolean);
     let existingNames = new Set<string>();
     if (names.length > 0) {
       const [existing] = await pool.query<RowDataPacket[]>(
-        `SELECT name FROM trademarks WHERE name IN (${names.map(() => '?').join(',')})`,
-        names
+        `SELECT name FROM trademarks WHERE tenant = ? AND name IN (${names.map(() => '?').join(',')})`,
+        [tenant, ...names]
       );
       existingNames = new Set(existing.map((e: RowDataPacket) => e.name as string));
     }
     const uniqueRows = rows.filter((r: { name: string }) => r.name && !existingNames.has(r.name));
     const skipped = rows.length - uniqueRows.length;
 
-    // Batch insert
     let inserted = 0;
     for (const row of uniqueRows) {
       try {
         await pool.query(
-          'INSERT INTO trademarks (name, category, price, products_services, `groups`, registration_date, valid_from, valid_to, application_count, trademark_no, ai_description, remark, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [row.name, row.category, row.price, row.products_services, row.groups, row.registration_date, row.valid_from, row.valid_to, row.application_count, row.trademark_no, row.ai_description, row.remark, row.image_url]
+          'INSERT INTO trademarks (tenant, name, category, price, products_services, `groups`, registration_date, valid_from, valid_to, application_count, trademark_no, ai_description, remark, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [tenant, row.name, row.category, row.price, row.products_services, row.groups, row.registration_date, row.valid_from, row.valid_to, row.application_count, row.trademark_no, row.ai_description, row.remark, row.image_url]
         );
         inserted++;
       } catch (err) {
-        return NextResponse.json({ error: String(err), inserted }, { status: 500 });
+        return NextResponse.json({ error: String(err), inserted, tenant }, { status: 500 });
       }
     }
 
-    return NextResponse.json({ success: true, inserted, skipped });
+    return NextResponse.json({ success: true, inserted, skipped, tenant });
   }
 
   if (type === 'international') {
@@ -82,13 +84,13 @@ export async function POST(request: NextRequest) {
       image_url: images?.[idx] || null,
     }));
 
-    // Filter out duplicates by name
+    // 去重：仅在本租户范围内查重
     const intlNames = rows.map((r: { name: string }) => r.name).filter(Boolean);
     let existingIntlNames = new Set<string>();
     if (intlNames.length > 0) {
       const [existingIntl] = await pool.query<RowDataPacket[]>(
-        `SELECT name FROM international_trademarks WHERE name IN (${intlNames.map(() => '?').join(',')})`,
-        intlNames
+        `SELECT name FROM international_trademarks WHERE tenant = ? AND name IN (${intlNames.map(() => '?').join(',')})`,
+        [tenant, ...intlNames]
       );
       existingIntlNames = new Set(existingIntl.map((e: RowDataPacket) => e.name as string));
     }
@@ -99,16 +101,16 @@ export async function POST(request: NextRequest) {
     for (const row of uniqueIntlRows) {
       try {
         await pool.query(
-          'INSERT INTO international_trademarks (country, name, description, trademark_no, category, price, registration_date, valid_from, valid_to, cn_items, local_items, en_items, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [row.country, row.name, row.description, row.trademark_no, row.category, row.price, row.registration_date, row.valid_from, row.valid_to, row.cn_items, row.local_items, row.en_items, row.image_url]
+          'INSERT INTO international_trademarks (tenant, country, name, description, trademark_no, category, price, registration_date, valid_from, valid_to, cn_items, local_items, en_items, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [tenant, row.country, row.name, row.description, row.trademark_no, row.category, row.price, row.registration_date, row.valid_from, row.valid_to, row.cn_items, row.local_items, row.en_items, row.image_url]
         );
         inserted++;
       } catch (err) {
-        return NextResponse.json({ error: String(err), inserted }, { status: 500 });
+        return NextResponse.json({ error: String(err), inserted, tenant }, { status: 500 });
       }
     }
 
-    return NextResponse.json({ success: true, inserted, skipped: intlSkipped });
+    return NextResponse.json({ success: true, inserted, skipped: intlSkipped, tenant });
   }
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 });

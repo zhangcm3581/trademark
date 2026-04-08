@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import TenantBadge from '@/components/backstage/TenantBadge';
 
 const menuItems = [
   {
@@ -150,6 +151,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       <div className="flex-1 ml-52 flex flex-col min-h-screen">
+        <header className="sticky top-0 z-20 h-12 bg-white border-b border-gray-100 flex items-center justify-end px-5">
+          <TenantBadge />
+        </header>
         <main className="flex-1 p-5">
           {children}
         </main>

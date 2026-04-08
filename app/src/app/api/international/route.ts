@@ -1,9 +1,11 @@
 import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { RowDataPacket } from 'mysql2';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  const tenant = await resolveRequestTenant(request);
 
   const country = searchParams.get('country');
   const keyword = searchParams.get('keyword');
@@ -12,8 +14,8 @@ export async function GET(request: NextRequest) {
   const pageSize = parseInt(searchParams.get('pageSize') || '20');
   const ids = searchParams.get('ids');
 
-  const conditions: string[] = [];
-  const params: (string | number)[] = [];
+  const conditions: string[] = ['tenant = ?'];
+  const params: (string | number)[] = [tenant];
 
   if (ids) {
     const idList = ids.split(',');
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
     params.push(`%${keyword}%`);
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = `WHERE ${conditions.join(' AND ')}`;
   const offset = (page - 1) * pageSize;
 
   try {

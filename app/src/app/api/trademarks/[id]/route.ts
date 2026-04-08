@@ -1,17 +1,22 @@
 import pool from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { NextRequest, NextResponse } from 'next/server';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
+// 客户端不可写入的字段：id 是主键，tenant 由请求上下文决定
+const FORBIDDEN_FIELDS = new Set(['id', 'tenant', 'created_at']);
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const tenant = await resolveRequestTenant(request);
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, name, category, price, products_services, `groups`, registration_date, valid_from, valid_to, application_count, trademark_no, remark, image_url, created_at FROM trademarks WHERE id = ?',
-      [id]
+      'SELECT id, name, category, price, products_services, `groups`, registration_date, valid_from, valid_to, application_count, trademark_no, remark, image_url, created_at FROM trademarks WHERE id = ? AND tenant = ?',
+      [id, tenant]
     );
     if (rows.length === 0) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -32,8 +37,9 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const tenant = await resolveRequestTenant(request);
   const body = await request.json();
-  const fields = Object.keys(body);
+  const fields = Object.keys(body).filter(f => !FORBIDDEN_FIELDS.has(f));
   if (fields.length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
@@ -43,10 +49,16 @@ export async function PUT(
 
   try {
     await pool.query<ResultSetHeader>(
-      `UPDATE trademarks SET ${setClauses} WHERE id = ?`,
-      [...values, id]
+      `UPDATE trademarks SET ${setClauses} WHERE id = ? AND tenant = ?`,
+      [...values, id, tenant]
     );
-    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM trademarks WHERE id = ?', [id]);
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT * FROM trademarks WHERE id = ? AND tenant = ?',
+      [id, tenant]
+    );
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
     return NextResponse.json(rows[0]);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -54,7 +66,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -63,8 +75,15 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const tenant = await resolveRequestTenant(request);
   try {
-    await pool.query('DELETE FROM trademarks WHERE id = ?', [id]);
+    const [result] = await pool.query<ResultSetHeader>(
+      'DELETE FROM trademarks WHERE id = ? AND tenant = ?',
+      [id, tenant]
+    );
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

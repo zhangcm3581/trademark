@@ -1,5 +1,6 @@
 import pool from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -17,10 +18,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'price must be a non-negative number' }, { status: 400 });
   }
 
+  const tenant = await resolveRequestTenant(request);
+
   try {
     await pool.query(
-      `UPDATE trademarks SET price = ? WHERE id IN (${ids.map(() => '?').join(',')})`,
-      [priceNum, ...ids]
+      `UPDATE trademarks SET price = ? WHERE tenant = ? AND id IN (${ids.map(() => '?').join(',')})`,
+      [priceNum, tenant, ...ids]
     );
     return NextResponse.json({ success: true, updated: ids.length });
   } catch (err) {

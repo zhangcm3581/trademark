@@ -1,17 +1,19 @@
 import pool from '@/lib/db';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { NextRequest, NextResponse } from 'next/server';
 import { RowDataPacket } from 'mysql2';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const tenant = await resolveRequestTenant(request);
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT image_url FROM international_trademarks WHERE id = ?',
-      [id]
+      'SELECT image_url FROM international_trademarks WHERE id = ? AND tenant = ?',
+      [id, tenant]
     );
 
     if (rows.length === 0 || !rows[0].image_url) {
@@ -31,7 +33,7 @@ export async function GET(
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, immutable',
+        'Cache-Control': 'private, max-age=86400, immutable',
       },
     });
   } catch {

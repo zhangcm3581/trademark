@@ -1,5 +1,6 @@
 import pool from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { NextRequest, NextResponse } from 'next/server';
 
 const CHUNK_SIZE = 500;
@@ -15,14 +16,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'ids is required' }, { status: 400 });
   }
 
+  const tenant = await resolveRequestTenant(request);
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
     for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
       const chunk = ids.slice(i, i + CHUNK_SIZE);
       await conn.query(
-        `DELETE FROM international_trademarks WHERE id IN (${chunk.map(() => '?').join(',')})`,
-        chunk
+        `DELETE FROM international_trademarks WHERE tenant = ? AND id IN (${chunk.map(() => '?').join(',')})`,
+        [tenant, ...chunk]
       );
     }
     await conn.commit();

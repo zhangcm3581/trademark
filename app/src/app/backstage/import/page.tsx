@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { parseExcelWithImages } from '@/lib/excel-parser';
+import { useCurrentTenant } from '@/components/backstage/TenantBadge';
 
 type ImportType = 'domestic' | 'international';
 
@@ -9,7 +10,21 @@ interface ParsedRow {
   [key: string]: string | number | null;
 }
 
+const TENANT_LABEL: Record<string, { name: string; host: string; accent: string }> = {
+  vip: {
+    name: '优质客户',
+    host: 'biaoxiaosheng.com',
+    accent: 'amber',
+  },
+  app: {
+    name: '普通客户',
+    host: 'app.biaoxiaosheng.com',
+    accent: 'sky',
+  },
+};
+
 export default function ImportPage() {
+  const tenant = useCurrentTenant();
   const [importType, setImportType] = useState<ImportType>('domestic');
   const [records, setRecords] = useState<ParsedRow[]>([]);
   const [images, setImages] = useState<Record<number, string>>({});
@@ -19,8 +34,10 @@ export default function ImportPage() {
   const [result, setResult] = useState<{ success?: boolean; inserted?: number; skipped?: number; error?: string } | null>(null);
   const [previewPage, setPreviewPage] = useState(1);
   const [dragging, setDragging] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const previewPageSize = 20;
   const fileRef = useRef<HTMLInputElement>(null);
+  const currentTenant = TENANT_LABEL[tenant || 'vip'];
 
   const processFile = async (file: File) => {
     setFileName(file.name);
@@ -57,6 +74,7 @@ export default function ImportPage() {
 
   const handleImport = async () => {
     if (records.length === 0) return;
+    setConfirmOpen(false);
     setImporting(true);
     setResult(null);
     setProgress('导入数据中...');
@@ -101,8 +119,37 @@ export default function ImportPage() {
   const headers = importType === 'domestic' ? domesticHeaders : intlHeaders;
   const imgCount = Object.keys(images).length;
 
+  const accentClasses = currentTenant.accent === 'amber'
+    ? {
+        bar: 'from-amber-50 to-orange-50 border-amber-200',
+        dot: 'bg-amber-500',
+        text: 'text-amber-800',
+        sub: 'text-amber-600',
+        confirmBtn: 'bg-amber-500 hover:bg-amber-600',
+      }
+    : {
+        bar: 'from-sky-50 to-blue-50 border-sky-200',
+        dot: 'bg-sky-500',
+        text: 'text-sky-800',
+        sub: 'text-sky-600',
+        confirmBtn: 'bg-sky-500 hover:bg-sky-600',
+      };
+
   return (
     <div className="flex flex-col h-[calc(100vh-40px)]">
+      {/* Tenant warning banner */}
+      <div className={`flex-shrink-0 mb-3 rounded-lg border bg-gradient-to-r ${accentClasses.bar} px-4 py-3 flex items-center gap-3`}>
+        <div className={`w-2.5 h-2.5 rounded-full ${accentClasses.dot} animate-pulse flex-shrink-0`} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-semibold ${accentClasses.text}`}>
+            当前正在导入到：{currentTenant.name}
+          </p>
+          <p className={`text-xs ${accentClasses.sub} mt-0.5`}>
+            数据将写入 {currentTenant.host}，不同租户的商标数据互相隔离。若导入错误，请先切换右上角租户选择器
+          </p>
+        </div>
+      </div>
+
       {/* Top section */}
       <div className="flex-shrink-0 space-y-3 mb-3">
         {/* Type selector + actions row */}
@@ -149,7 +196,7 @@ export default function ImportPage() {
               </button>
             )}
             <button
-              onClick={handleImport}
+              onClick={() => setConfirmOpen(true)}
               disabled={importing || records.length === 0}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
@@ -386,6 +433,67 @@ export default function ImportPage() {
           </div>
         );
       })()}
+
+      {/* Confirm import modal */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setConfirmOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-[460px] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className={`bg-gradient-to-r ${accentClasses.bar} px-5 py-4 border-b border-black/5`}>
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${accentClasses.dot}`} />
+                <h3 className={`text-sm font-bold ${accentClasses.text}`}>确认导入到：{currentTenant.name}</h3>
+              </div>
+              <p className={`text-xs ${accentClasses.sub} mt-1`}>{currentTenant.host}</p>
+            </div>
+            <div className="px-5 py-5 space-y-3">
+              <p className="text-sm text-gray-700">
+                即将把 <span className="font-bold text-gray-900">{records.length}</span> 条{importType === 'domestic' ? '国内' : '国际'}商标数据导入到租户
+                <span className="font-bold text-gray-900 mx-1">{currentTenant.name}</span>
+                数据库。
+              </p>
+              <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">文件</span>
+                  <span className="text-gray-700 font-medium truncate ml-3">{fileName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">记录条数</span>
+                  <span className="text-gray-700 font-medium">{records.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">包含图片</span>
+                  <span className="text-gray-700 font-medium">{imgCount} 张</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">商标类型</span>
+                  <span className="text-gray-700 font-medium">{importType === 'domestic' ? '国内商标' : '国际商标'}</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 pt-1.5 mt-1.5">
+                  <span className="text-gray-500">目标租户</span>
+                  <span className="font-bold text-gray-900">{currentTenant.name}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-red-500 leading-relaxed">
+                ⚠️ 导入后数据无法批量撤销，请确认当前租户是否正确。若租户错误，请关闭此弹窗并在右上角切换租户选择器。
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-5 py-3.5 border-t border-gray-100 bg-gray-50/50">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleImport}
+                className={`flex-1 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-colors ${accentClasses.confirmBtn}`}
+              >
+                确认导入 {records.length} 条
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

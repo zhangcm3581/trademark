@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { SettingsProvider } from '@/components/SettingsProvider';
-import pool from '@/lib/db';
-import { RowDataPacket } from 'mysql2';
+import { getAllSettings } from '@/lib/settings';
+import { getCurrentTenant } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,21 +11,20 @@ export default async function MobileLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const tenant = await getCurrentTenant();
+
   let showDiscount = true;
   let showPrice = true;
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT `key`, `value` FROM settings WHERE `key` IN ('show_discount_tab', 'show_price')"
-    );
-    for (const row of rows) {
-      if (row.key === 'show_discount_tab') {
-        showDiscount = row.value !== 'false';
-      } else if (row.key === 'show_price') {
-        showPrice = row.value !== 'false';
-      }
+    const settings = await getAllSettings(tenant);
+    if (settings.show_discount_tab !== undefined) {
+      showDiscount = settings.show_discount_tab !== 'false';
+    }
+    if (settings.show_price !== undefined) {
+      showPrice = settings.show_price !== 'false';
     }
   } catch {
-    // fallback to true
+    // fallback to defaults
   }
 
   return (

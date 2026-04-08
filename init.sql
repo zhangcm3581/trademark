@@ -7,6 +7,7 @@ USE trademark;
 -- 国内商标表
 CREATE TABLE IF NOT EXISTS trademarks (
   id CHAR(36) NOT NULL DEFAULT (UUID()) PRIMARY KEY,
+  tenant VARCHAR(32) NOT NULL DEFAULT 'vip',
   name VARCHAR(255) NOT NULL DEFAULT '',
   category INT NOT NULL DEFAULT 0,
   price DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -25,12 +26,16 @@ CREATE TABLE IF NOT EXISTS trademarks (
   INDEX idx_price (price),
   INDEX idx_name (name),
   INDEX idx_trademark_no (trademark_no),
-  INDEX idx_created_at (created_at)
+  INDEX idx_created_at (created_at),
+  INDEX idx_tenant_category (tenant, category),
+  INDEX idx_tenant_price (tenant, price),
+  INDEX idx_tenant_created (tenant, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 国际商标表
 CREATE TABLE IF NOT EXISTS international_trademarks (
   id CHAR(36) NOT NULL DEFAULT (UUID()) PRIMARY KEY,
+  tenant VARCHAR(32) NOT NULL DEFAULT 'vip',
   country VARCHAR(100) NOT NULL DEFAULT '',
   name VARCHAR(255) NOT NULL DEFAULT '',
   description TEXT,
@@ -48,14 +53,19 @@ CREATE TABLE IF NOT EXISTS international_trademarks (
   INDEX idx_country (country),
   INDEX idx_category (category),
   INDEX idx_name (name),
-  INDEX idx_created_at (created_at)
+  INDEX idx_created_at (created_at),
+  INDEX idx_tenant_category (tenant, category),
+  INDEX idx_tenant_country (tenant, country),
+  INDEX idx_tenant_created (tenant, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 系统设置表
+-- 系统设置表（按租户独立）
 CREATE TABLE IF NOT EXISTS settings (
-  `key` VARCHAR(100) NOT NULL PRIMARY KEY,
+  tenant VARCHAR(32) NOT NULL DEFAULT 'vip',
+  `key` VARCHAR(100) NOT NULL,
   `value` TEXT NOT NULL,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (tenant, `key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 管理员用户表
@@ -66,10 +76,17 @@ CREATE TABLE IF NOT EXISTS admin_users (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 默认设置
-INSERT IGNORE INTO settings (`key`, `value`) VALUES
-  ('discount_price_threshold', '5000'),
-  ('show_discount_tab', 'true');
+-- 默认设置（vip 租户）
+INSERT IGNORE INTO settings (tenant, `key`, `value`) VALUES
+  ('vip', 'discount_price_threshold', '5000'),
+  ('vip', 'show_discount_tab', 'true'),
+  ('vip', 'show_price', 'true');
+
+-- 默认设置（app 租户）
+INSERT IGNORE INTO settings (tenant, `key`, `value`) VALUES
+  ('app', 'discount_price_threshold', '5000'),
+  ('app', 'show_discount_tab', 'true'),
+  ('app', 'show_price', 'true');
 
 -- 管理员账号 (密码 hash 由 bcryptjs 生成)
 INSERT IGNORE INTO admin_users (username, password_hash) VALUES

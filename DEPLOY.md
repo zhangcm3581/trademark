@@ -1,12 +1,22 @@
-# 标小生 - 服务器自部署文档
+# 全国商标库 - 服务器自部署文档
 
 ## 架构概览
 
 ```
 浏览器 → Caddy (自动HTTPS)
-           └── your-domain.com → Next.js :3000 (PM2)
-                                     └── MySQL :3306 (本机)
+           ├── biaoxiaosheng.com       ─┐
+           └── app.biaoxiaosheng.com   ─┤
+                                        ├── Next.js :3000 (PM2)
+                                        │      └── MySQL :3306 (本机)
+                                        │            └── tenant 字段区分数据
 ```
+
+**多租户说明：**
+- `biaoxiaosheng.com` 面向优质客户（数据库 `tenant='vip'`）
+- `app.biaoxiaosheng.com` 面向普通客户（数据库 `tenant='app'`）
+- 同一份代码、同一个 Next.js 进程、同一个 MySQL 库，根据请求 Host 自动隔离数据
+- 管理后台 `/backstage` 在两个域名上都可访问；登录后的所有操作只针对当前访问的域名所属租户
+- 登录 cookie 各域独立，必须在各自域名上分别登录一次
 
 所有服务部署在同一台服务器上，MySQL 直接安装在服务器本机。
 
@@ -127,6 +137,48 @@ mysql -u trademark -p trademark < /opt/trademark/init.sql
 > 建表脚本会自动创建默认管理员账号：`admin` / `admin123`
 > **部署后请立即修改密码！**
 
+### 2.3 多租户迁移（已运行过 init.sql 的旧库）
+
+> 如果数据库已经存在并有商标数据，**不要**重新运行 init.sql。
+> 改为执行 `migrations/001_add_tenant.sql`，给现有表添加 `tenant` 字段。
+
+```bash
+mysql -u trademark -p trademark < /opt/trademark/migrations/001_add_tenant.sql
+```
+
+迁移脚本特点：
+- **幂等可重放**：脚本通过存储过程判断列/索引是否已存在，反复执行不会出错
+- **零停机**：使用 `ALGORITHM=INSTANT`，加列不重写表，秒级完成
+- **数据保留**：所有现有商标自动归属 `tenant='vip'`（即 `biaoxiaosheng.com` 主站）
+
+迁移后数据库会有：
+| 表名 | 新增字段 | 新增索引 |
+|---|---|---|
+| `trademarks` | `tenant VARCHAR(32) NOT NULL DEFAULT 'vip'` | `(tenant, category)`、`(tenant, price)`、`(tenant, created_at)` |
+| `international_trademarks` | 同上 | `(tenant, category)`、`(tenant, country)`、`(tenant, created_at)` |
+| `settings` | `tenant VARCHAR(32) NOT NULL DEFAULT 'vip'`，主键改为 `(tenant, key)` | — |
+
+迁移完成后会自动为 `app` 租户复制一份默认设置（与 `vip` 相同），后续可在两个域名的后台分别独立修改。
+
+**强烈建议在生产执行前备份：**
+
+```bash
+mkdir -p /opt/backup
+mysqldump -u trademark -p trademark > /opt/backup/before_tenant_$(date +%Y%m%d_%H%M%S).sql
+```
+
+**验证迁移结果：**
+
+```bash
+mysql -u trademark -p trademark -e "
+  SELECT tenant, COUNT(*) AS rows FROM trademarks GROUP BY tenant;
+  SELECT tenant, COUNT(*) AS rows FROM international_trademarks GROUP BY tenant;
+  SELECT tenant, \\\`key\\\`, \\\`value\\\` FROM settings ORDER BY tenant, \\\`key\\\`;
+"
+```
+
+应看到：所有商标归属 `vip`，settings 表中 `vip` 和 `app` 各 3 行（默认设置）。
+
 ---
 
 ## 三、拉取并部署应用代码
@@ -209,11 +261,14 @@ curl http://127.0.0.1:3000
 
 ### 4.1 域名解析
 
-在你的域名服务商处添加一条 A 记录，指向服务器公网 IP：
+在你的域名服务商处添加 **两条** A 记录，全部指向同一台服务器公网 IP：
 
-| 记录类型 | 主机记录 | 记录值       |
-| -------- | -------- | ------------ |
-| A        | @        | 服务器公网IP |
+| 记录类型 | 主机记录 | 记录值       | 用途                       |
+| -------- | -------- | ------------ | -------------------------- |
+| A        | @        | 服务器公网IP | `biaoxiaosheng.com`（vip） |
+| A        | app      | 服务器公网IP | `app.biaoxiaosheng.com`    |
+
+> 两条记录必须**指向同一台服务器**。Next.js 进程根据请求 Host 自动区分租户，物理上是同一份代码同一个进程。
 
 ### 4.2 配置 Caddyfile
 
@@ -224,10 +279,27 @@ nano /etc/caddy/Caddyfile
 写入：
 
 ```caddyfile
-你的域名.com {
+biaoxiaosheng.com, app.biaoxiaosheng.com {
     reverse_proxy 127.0.0.1:3000
 }
 ```
+
+> 这里 Caddy 会用同一个站点配置匹配两个域名，统一反向代理到 Next.js。Next.js 看到的 `Host` 头会保留原始请求的域名，从而能区分租户。
+>
+> 如果未来要给两个站点配不同的限速、缓存或 IP 白名单，可以拆成两个站点块：
+>
+> ```caddyfile
+> biaoxiaosheng.com {
+>     reverse_proxy 127.0.0.1:3000
+> }
+>
+> app.biaoxiaosheng.com {
+>     reverse_proxy 127.0.0.1:3000
+>     # 例如这里可以加 rate_limit 等
+> }
+> ```
+>
+> Caddy 会**自动为两个域名各申请一张 Let's Encrypt 证书**，并自动续期。
 
 ### 4.3 启动 Caddy
 
@@ -242,7 +314,13 @@ systemctl reload caddy
 systemctl status caddy
 ```
 
-Caddy 会自动向 Let's Encrypt 申请 HTTPS 证书并自动续期。
+首次启动后查看证书申请日志，确认两个域名都拿到了证书：
+
+```bash
+journalctl -u caddy -n 100 --no-pager | grep -E '(certificate obtained|biaoxiaosheng)'
+```
+
+应看到 `biaoxiaosheng.com` 和 `app.biaoxiaosheng.com` 各一条 `certificate obtained successfully` 日志。
 
 ### 4.4 防火墙
 
@@ -258,15 +336,78 @@ ufw reload
 
 ## 五、验证部署
 
+### 5.1 基础联通性
+
 按顺序访问：
 
-| 步骤 | 地址                                | 预期结果       |
-| ---- | ----------------------------------- | -------------- |
-| 1    | `https://你的域名.com`              | 精品商标首页   |
-| 2    | `https://你的域名.com/backstage/login`  | 管理员登录页   |
-| 3    | 用 admin / admin123 登录            | 进入管理后台   |
-| 4    | `https://你的域名.com/backstage/settings` | 系统设置页   |
-| 5    | `https://你的域名.com/backstage/import` | Excel 导入页   |
+| 步骤 | 地址                                                  | 预期结果       |
+| ---- | ----------------------------------------------------- | -------------- |
+| 1    | `https://biaoxiaosheng.com`                           | 精品商标首页（VIP 数据） |
+| 2    | `https://app.biaoxiaosheng.com`                       | 精品商标首页（APP 数据，初次部署应该是空列表）|
+| 3    | `https://biaoxiaosheng.com/backstage/login`           | 管理员登录页 |
+| 4    | 用 admin / 你的密码 登录                              | 进入管理后台，**右上角看到琥珀色"优质客户"徽章** |
+| 5    | `https://app.biaoxiaosheng.com/backstage/login`       | 同样的登录页（独立 cookie，需要再登录一次）|
+| 6    | 用 admin / 你的密码 登录                              | 进入管理后台，**右上角看到天蓝色"普通客户"徽章** |
+
+### 5.2 多租户隔离联调（重要）
+
+完成基础联通后，按以下脚本演练一次端到端隔离，确认两个域名的数据完全独立：
+
+#### A. 在 vip 后台导入测试数据
+
+1. 浏览器打开 `https://biaoxiaosheng.com/backstage/login`，登录
+2. 进入 `/backstage/import`，确认顶部警告条**琥珀色**显示"当前正在导入到：优质客户"
+3. 选一个测试 Excel（3-5 条记录即可），点"导入"
+4. 弹出二次确认 modal，确认目标租户是"优质客户"，点确认
+5. 进入 `/backstage` 商标列表，确认这 3-5 条记录已出现
+
+#### B. 在 vip 前台验证可见
+
+1. 打开 `https://biaoxiaosheng.com/`，进入精品/特惠分类
+2. 找到刚导入的商标 ✅
+
+#### C. 切换到 app 后台验证不可见
+
+1. 浏览器打开 `https://app.biaoxiaosheng.com/backstage/login`，登录
+2. 顶部徽章应是**天蓝色"普通客户"**
+3. 进入 `/backstage` 商标列表，**不应看到** A 步骤导入的商标 ✅
+
+#### D. 在 app 前台验证不可见
+
+1. 打开 `https://app.biaoxiaosheng.com/`
+2. 商标列表为空（或只有你后续给 app 导入的数据）✅
+
+#### E. 反向验证 — 在 app 后台导入数据
+
+1. 在 app 后台导入 2-3 条不同的测试商标
+2. 顶部警告条应是**天蓝色**，弹窗确认目标是"普通客户"
+3. 导入后访问 `https://app.biaoxiaosheng.com/`，应看到这些数据
+4. 访问 `https://biaoxiaosheng.com/`，**不应看到** ✅
+
+#### F. settings 隔离
+
+1. 在 vip 后台 `/backstage/settings` 把"特惠商标"开关关掉
+2. 访问 `https://biaoxiaosheng.com/`，底部导航**没有**"特惠商标"
+3. 访问 `https://app.biaoxiaosheng.com/`，底部导航**仍然**显示"特惠商标"（app 的设置未受影响）✅
+4. 验证完成后记得把 vip 的开关恢复回去
+
+#### G. 测试数据清理
+
+演练结束后，在两个后台分别批量删除测试商标。
+
+### 5.3 验证清单（一键检查）
+
+| 检查项 | 通过 |
+|---|---|
+| `biaoxiaosheng.com` HTTPS 证书有效 | ☐ |
+| `app.biaoxiaosheng.com` HTTPS 证书有效 | ☐ |
+| vip 后台徽章显示"优质客户" | ☐ |
+| app 后台徽章显示"普通客户" | ☐ |
+| vip 域导入的商标只在 vip 前台可见 | ☐ |
+| app 域导入的商标只在 app 前台可见 | ☐ |
+| 跨租户访问对方商标 ID（比如复制 vip 商标 URL 到 app 域）→ 404 | ☐ |
+| vip / app 的 settings 互相独立 | ☐ |
+| 两个域名各自的登录 cookie 互不干扰 | ☐ |
 
 ---
 
@@ -346,6 +487,8 @@ free -h                       # 内存
 
 ## 八、页面入口汇总
 
+每个地址在 **两个域名** 下都可以访问，看到的数据由域名决定：
+
 | 地址              | 说明                              |
 | ----------------- | --------------------------------- |
 | `/`               | 首页（跳转到精品商标）            |
@@ -358,3 +501,97 @@ free -h                       # 内存
 | `/backstage`          | 商标管理                          |
 | `/backstage/import`   | Excel 导入                        |
 | `/backstage/settings` | 系统设置（特惠商标开关、价格阈值）|
+
+---
+
+## 九、多租户故障排查
+
+### 9.1 访问 app 子域看到的是 vip 数据
+
+**症状**：`app.biaoxiaosheng.com` 显示了 vip 的商标。
+
+**排查顺序**：
+
+1. **DNS 是否正确解析到本机？**
+   ```bash
+   dig +short app.biaoxiaosheng.com
+   ```
+   应返回服务器公网 IP。如果不对，回到 4.1 检查 DNS 配置。
+
+2. **Caddy 是否把 Host 头透传给 Next.js？**（Caddy 默认会，无需特殊配置）
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" -H "Host: app.biaoxiaosheng.com" http://127.0.0.1:3000/
+   ```
+
+3. **服务端 tenantFromHost 逻辑是否生效？**
+   ```bash
+   curl -s "https://app.biaoxiaosheng.com/api/trademarks?page=1&pageSize=2"
+   ```
+   应返回 app 租户的数据。如果返回 vip 数据，检查 `app/src/lib/tenant.ts` 是否被构建包含。
+
+4. **是不是浏览器缓存？** 强制刷新（Cmd+Shift+R / Ctrl+Shift+F5）。
+
+### 9.2 后台徽章颜色不对
+
+后台右上角徽章颜色由 `window.location.hostname` 决定，**前端运行时计算**。如果颜色不对，多半是浏览器访问的 hostname 不是 `app.` 开头但你期望显示"普通客户"。
+
+```js
+// 在浏览器 DevTools Console 里执行：
+window.location.hostname
+```
+
+只要 hostname 以 `app.` 开头，徽章就显示"普通客户"。
+
+### 9.3 导入到错的租户
+
+如果发现误把 vip 数据导入到 app（或反之）：
+
+1. **不要直接删除全部**。先查清楚哪些是误导入的：
+   ```sql
+   SELECT id, name, created_at FROM trademarks
+     WHERE tenant = 'app' AND created_at > '2026-04-08 14:00:00'
+     ORDER BY created_at DESC;
+   ```
+2. 确认范围后，可以**直接 UPDATE 改 tenant** 而不是删除重导：
+   ```sql
+   UPDATE trademarks
+     SET tenant = 'vip'
+     WHERE tenant = 'app' AND created_at > '2026-04-08 14:00:00';
+   ```
+
+### 9.4 Caddy 证书申请失败
+
+通常是 DNS 还没生效或 80/443 端口未开放。
+
+```bash
+journalctl -u caddy -n 200 --no-pager | tail -50
+```
+
+常见错误：
+- `dns: NXDOMAIN` → DNS 未生效，等 1-10 分钟或检查记录
+- `connection refused` → 80 端口被防火墙拦截
+- `rate limited by ACME server` → Let's Encrypt 限速，等几小时再试或先用 HTTP 测试
+
+---
+
+## 十、未来扩展：增加第三个租户
+
+现在的 tenant 字段是 `VARCHAR(32)`，理论上可以承载任意数量的租户。增加第三个（比如 `enterprise.biaoxiaosheng.com`）只需：
+
+1. **代码层**：修改 [app/src/lib/tenant.ts](app/src/lib/tenant.ts) 的 `tenantFromHost`：
+   ```ts
+   if (clean.startsWith('enterprise.')) return 'enterprise';
+   ```
+   同时把 `Tenant` 类型加上 `'enterprise'`，以及 [app/src/components/backstage/TenantBadge.tsx](app/src/components/backstage/TenantBadge.tsx) 的 `DESCRIBE` 表加一项。
+
+2. **数据库**：为新租户初始化默认设置：
+   ```sql
+   INSERT INTO settings (tenant, `key`, `value`)
+     SELECT 'enterprise', `key`, `value` FROM settings WHERE tenant = 'vip';
+   ```
+
+3. **DNS / Caddy**：加一条 A 记录 + Caddyfile 加一个域名。
+
+4. **重启 Next.js**：`pm2 restart trademark`。
+
+零数据迁移、零停机。

@@ -1,17 +1,19 @@
 import pool from '@/lib/db';
+import { resolveRequestTenant } from '@/lib/tenant';
 import { NextRequest, NextResponse } from 'next/server';
 import { RowDataPacket } from 'mysql2';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const tenant = await resolveRequestTenant(request);
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT image_url FROM trademarks WHERE id = ?',
-      [id]
+      'SELECT image_url FROM trademarks WHERE id = ? AND tenant = ?',
+      [id, tenant]
     );
 
     if (rows.length === 0 || !rows[0].image_url) {
@@ -31,7 +33,8 @@ export async function GET(
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, immutable',
+        // private 避免 CDN 跨租户共享；浏览器仍可缓存（id 是全局唯一 UUID，不会串）
+        'Cache-Control': 'private, max-age=86400, immutable',
       },
     });
   } catch {
