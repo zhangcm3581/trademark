@@ -77,34 +77,46 @@ function DetailContent() {
         </div>
       </div>
 
-      <div className="text-center py-4 space-y-1">
-        <p className="text-lg font-bold">
+      <div className="py-4">
+        <p className="text-lg font-bold text-center mb-3">
           {item.name} （第 {item.category} 类）
         </p>
-        {showPrice && (
-          <p className="flex items-baseline justify-center gap-1">
-            <span className="text-gray-700">价格：</span>
-            <span className={`font-bold text-xl ${item.price >= PREMIUM_PRICE_THRESHOLD ? 'text-amber-600' : 'text-red-500'}`}>
-              {item.price > 0 ? `¥${Number(item.price).toLocaleString()}` : '面议'}
-            </span>
-          </p>
-        )}
-        <p className="text-gray-700">注册号：{item.trademark_no}</p>
-        <p className="text-gray-700">申请日期：{item.registration_date}</p>
-        <p className="text-gray-700 font-medium">
-          有效期：{item.valid_from}至{item.valid_to}
-        </p>
-        <p className="text-gray-700">
-          客服经理电话：
-          <a href="tel:18324413945" className="text-blue-600 font-medium">
-            18324413945
-          </a>
-        </p>
-        {isIntl && (
-          <p className="text-gray-700">
-            国家/地区：{(item as InternationalTrademark).country}
-          </p>
-        )}
+        <div className="flex justify-center">
+          <div className="space-y-1 text-sm">
+            {showPrice && (
+              <p className="flex items-baseline">
+                <span className="inline-block w-28 text-right mr-1 text-gray-700 whitespace-nowrap">价格：</span>
+                <span className={`font-bold ${item.price >= PREMIUM_PRICE_THRESHOLD ? 'text-amber-600' : 'text-red-500'}`}>
+                  {item.price > 0 ? `¥${Number(item.price).toLocaleString()}` : '面议'}
+                </span>
+              </p>
+            )}
+            <p className="flex">
+              <span className="inline-block w-28 text-right mr-1 text-gray-700 whitespace-nowrap">注册号：</span>
+              <span className="text-gray-700">{item.trademark_no}</span>
+            </p>
+            <p className="flex">
+              <span className="inline-block w-28 text-right mr-1 text-gray-700 whitespace-nowrap">申请日期：</span>
+              <span className="text-gray-700">{item.registration_date}</span>
+            </p>
+            <p className="flex">
+              <span className="inline-block w-28 text-right mr-1 text-gray-700 whitespace-nowrap">有效期：</span>
+              <span className="text-gray-700 font-medium">{item.valid_from}至{item.valid_to}</span>
+            </p>
+            <p className="flex">
+              <span className="inline-block w-28 text-right mr-1 text-gray-700 whitespace-nowrap">客服经理电话：</span>
+              <a href="tel:18324413945" className="text-blue-600 font-medium">
+                18324413945
+              </a>
+            </p>
+            {isIntl && (
+              <p className="flex">
+                <span className="inline-block w-28 text-right mr-1 text-gray-700 whitespace-nowrap">国家/地区：</span>
+                <span className="text-gray-700">{(item as InternationalTrademark).country}</span>
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {productList.length > 0 && (
