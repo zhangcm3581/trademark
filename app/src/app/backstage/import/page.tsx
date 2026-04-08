@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { parseExcelWithImages } from '@/lib/excel-parser';
 import { useCurrentTenant } from '@/components/backstage/TenantBadge';
 
@@ -24,6 +25,7 @@ const TENANT_LABEL: Record<string, { name: string; host: string; accent: string 
 };
 
 export default function ImportPage() {
+  const router = useRouter();
   const tenant = useCurrentTenant();
   const [importType, setImportType] = useState<ImportType>('domestic');
   const [records, setRecords] = useState<ParsedRow[]>([]);
@@ -97,6 +99,10 @@ export default function ImportPage() {
         setFileName('');
         setProgress('');
         if (fileRef.current) fileRef.current.value = '';
+        // 导入成功后跳转到商标列表页
+        setImporting(false);
+        router.push('/backstage');
+        return;
       }
     } catch {
       setResult({ error: '导入失败，请重试' });

@@ -94,6 +94,12 @@ function DetailContent() {
         <p className="text-gray-700 font-medium">
           有效期：{item.valid_from}至{item.valid_to}
         </p>
+        <p className="text-gray-700">
+          客服经理电话：
+          <a href="tel:18324413945" className="text-blue-600 font-medium">
+            18324413945
+          </a>
+        </p>
         {isIntl && (
           <p className="text-gray-700">
             国家/地区：{(item as InternationalTrademark).country}

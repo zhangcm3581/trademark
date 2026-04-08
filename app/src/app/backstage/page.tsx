@@ -205,7 +205,7 @@ export default function AdminPage() {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-40px)]">
+    <div className="flex flex-col h-[calc(100vh-88px)]">
       {/* Sticky Header */}
       <div className="flex-shrink-0 flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
