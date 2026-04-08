@@ -131,19 +131,26 @@ export default function AdminPage() {
   const handleBatchDelete = async () => {
     setSaving(true);
     const ids = Array.from(selected);
+    const idSet = new Set(ids);
     const endpoint = tab === 'domestic'
       ? '/api/trademarks/batch-delete'
       : '/api/international/batch-delete';
     try {
-      await fetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
       });
+      if (res.ok) {
+        // 乐观更新：立即从当前列表移除已删除项
+        setItems(prev => prev.filter(it => !idSet.has(it.id)));
+        setTotal(prev => Math.max(0, prev - ids.length));
+      }
     } catch { /* ignore */ }
     setSelected(new Set());
     setModal(null);
     setSaving(false);
+    // 后台静默同步（若当前页空了则会回到合理状态）
     fetchData();
   };
 
@@ -158,20 +165,24 @@ export default function AdminPage() {
     if (batchPrice === '' || !Number.isFinite(priceNum) || priceNum < 0) return;
     setSaving(true);
     const ids = Array.from(selected);
+    const idSet = new Set(ids);
     const endpoint = tab === 'domestic'
       ? '/api/trademarks/batch-update-price'
       : '/api/international/batch-update-price';
     try {
-      await fetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, price: priceNum }),
       });
+      if (res.ok) {
+        // 乐观更新：立即更新当前列表价格
+        setItems(prev => prev.map(it => idSet.has(it.id) ? { ...it, price: priceNum } : it));
+      }
     } catch { /* ignore */ }
     setSelected(new Set());
     setModal(null);
     setSaving(false);
-    fetchData();
   };
 
   const toggleSelect = (id: string) => {
